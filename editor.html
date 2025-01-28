@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>HTML</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/3024-night.min.css">
+  <style>
+   body{
+     background:black;
+    }
+     .bar{
+       width:100%;
+       height:50px;
+      background:#00c0ff
+     }
+    .CodeMirror {
+     border: 2px solid white;
+     height:600px;
+      font-family: 'Consolas', monospace;
+      font-size: 19px;
+    }
+  </style>
+</head>
+<body>
+  
+  <textarea id="editor"></textarea>
+  <div class ="bar"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/javascript/javascript.min.js"></script>
+  <script>
+    var editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+      mode: 'javascript',
+      lineNumbers: false,
+      theme: '3024-night'
+    });
+      
+  </script>
+</body>
+</html>
