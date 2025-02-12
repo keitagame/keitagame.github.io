@@ -18,123 +18,23 @@ font-family:Consolas,Monaco,'Andale Mono','Ubuntu Mono',monospace;
 <body>
   <pre id="code-block">
    <code>
-   // appjs
-let video;
-let model;
-009
-const names = ["Alice", "Bob", "Charlie", "Daisy", "Eve", "Frank", "Grace", "Hank"];
 
-async function setupCamera() {
-    video = document.getElementById('video');
-    const stream = await navigator.mediaDevices.getUserMedia({
-        video: {, width: 100 w:100}
-    });
-    video.srcObject = stream;
-    return new Promise((resolve) => {
-        video.onloadedmetadata = () => {
-            resolve(video);
-        };
-    });
-}
-
-async function loadModel() {
-    model = await blazeface.load();
-    console.log('BlazeFace model loaded');
-}
-
-function getRandomName() {
-    return names[Math.floor(Math.random() * names.length)];
-}
-
-async function detectFaces() {
-    const returnTensors = false; // 顔のバウンディングボックスを返す
-    const predictions = await model.estimateFaces(video, returnTensors);
-
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    if (predictions.length > 0) {
-        var i = 0;
-        predictions.forEach(prediction => {
-            i++;
-            const [startX, startY, endX, endY] = prediction.topLeft.concat(prediction.bottomRight);
-            const width = endX - startX;
-            const height = endY - startY;
-
-            ctx.strokeStyle = 'red';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(startX, startY, width, height);
-
-            const randomName = getRandomName();
-            const mg = endY-startY;
-            
-            const people = "People";
-            
-            ctx.fillStyle = 'red';
-            ctx.font = '30px Arial';
-            ctx.fillText(mg, startX, startY - 10);
-            ctx.fillStyle = 'red';
-            ctx.font = '30px Arial';
-            ctx.fillText(people, startX, endY + 30);
-        });
-    }
-
-    requestAnimationFrame(detectFaces);
-}
-
-async function init() {
-    await setupCamera();
-    video.play();
-    await loadModel();
-    detectFaces();
-}
-
-init();
 </code>
   </pre>
 
   <script>
- 
-  const code = document.getElementById('code-block');
-highlight(code);
-function highlight(code){
+ // データを保存
+localStorage.setItem('キー', '値');
+
+// データを取得
+const value = localStorage.getItem('キー');
+
+// データを削除
+localStorage.removeItem('キー');
+
+
+
   
-  const patterns = {
-  num: /\d+/g,
-  mot: /[a-zA-Z_]\w*(?=\:)\d+/g,
-    string: /(?!.*span)(".*?"|'.*?'|`.*?`)/g,
-    keyword: /\b(function|console|return|async|if|else|await|document)\b/g,
-    const: /\b(const)\b/g,
-    let: /\b(let)\b/g,
-    var: /\b(var)\b/g,
-   functions: /\b[a-zA-Z_]\w*(?=\s*\()/g, 
-   
-  
-    comment: /(\/\/.*?$|\/\*[\s\S]*?\*\/)/gm
-  };
-let variableNames = [];
- 
-  let highlightedCode = code.textContent
-  .replace(patterns.mot, '<span style ="color: #00f00f;">$&</span>')
-    .replace(patterns.num, '<span style ="color: #00f00f;">$&</span>')
-   
-    .replace(patterns.string, '<span style ="color: #ff00ff;">$&</span>')
-   .replace(patterns.functions, '<span style ="color: #c000ff;">$&</span>')
- 
-    .replace(patterns.keyword, '<span class="keyword" style ="color: #00c0ff;">$&</span>')
-    .replace(patterns.const, '<span style ="color: orange;">$&</span>')
-   .replace(patterns.let, '<span style ="color: red;">$&</span>')
-    
-    .replace(patterns.var, '<span style ="color: green;">$&</span>')
-     .replace(patterns.d, '<span style ="color: blue;">$&</span>')
- 
-    .replace(patterns.comment, '<span class="comment" style ="color: gray;">$&</span>');
- 
-  console.log(variableNames);
-  code.innerHTML = highlightedCode;
-}
 </script>
 </body>
 </html>
