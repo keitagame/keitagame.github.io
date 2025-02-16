@@ -1,13 +1,11 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@900&display=swap" rel="stylesheet">
-      <title>Welcome to keitagames</title>
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.9.0/localforage.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/countup.js/1.9.3/countUp.js"></script>
+ <title>Welcome to codekeita</title>
     <style>
         body {
          
@@ -15,13 +13,15 @@
             align-items: center;
             height: 100vh;
             background-color: #000214;
-        
-        }
+       
+        } 
+          
+
         h1 {
             background: linear-gradient(to right, #4b38d6, #fff);  /* グラデーションの設定 */
             -webkit-background-clip: text;
             color: transparent;
-            
+            Display:flex;
             font-size: 130px;
         }
        h2 {
@@ -32,12 +32,51 @@
            margin:-6px;
              border-bottom: 0.1px solid #cecece;
           }
+       .a{
+     margin-left:100px;
+       font-size:40px;
+       Display:flex;
+    }
+        .b{
+     margin-left:200px;
+       font-size:60px;
+       Display:flex;
+    }
     </style>
 </head>
 <body>
      <div class="menu"><h2>KeitaGames</h2></div>
     <h1>ようこそ</h1>
    <h1>　　keitagamesへ</h1>
+　　<h1 class="a">あなたがこのサイトを見つけるまでに</h1>
+   <h1 class="b"><div></div><div id="counter">0</div><div>人の人がこのサイトに訪れています</div></h1>
    
+    
+    <script>
+        
+        // localForageでカウントを取得
+        localforage.getItem('page_view_count').then(function(count) {
+            // カウントが存在しない場合は初期値0を設定
+            if (count === null) {
+                count = 0;
+            } else {
+                count = parseInt(count);
+            }
+
+            // カウントを1増やす
+            count++;
+
+            // 更新したカウントをlocalForageに保存
+            localforage.setItem('page_view_count', count).then(function() {
+                // CountUp.jsでカウンターを表示
+                var counter = new CountUp('counter', 0, count);
+                if (!counter.error) {
+                    counter.start();
+                } else {
+                    console.error(counter.error);
+                }
+            });
+        });
+    </script>
 </body>
 </html>
