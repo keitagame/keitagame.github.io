@@ -1,6 +1,6 @@
-<svg width="800" height="100" xmlns="http://www.w3.org/2000/svg">
+<svg width="300" height="100" xmlns="http://www.w3.org/2000/svg">
       
-        <text x="97" y="80" font-family="Archivo" font-size="40" fill="white" font-weight="bold">KeitaGames</text>
+        <text x="97" y="80" font-family="Archivo" font-size="40" fill="white" font-weight="bold">central</text>
       <text x="27" y="80" font-family="Arial" font-size="70" fill="white" font-weight="bold">K</text>
       <ellipse cx="53" cy="46" rx="37" ry="10" stroke="white" stroke-width="3" fill="none" transform="rotate(155 50 50)" />
      <ellipse cx="53" cy="46" rx="40" ry="10" stroke="white" stroke-width="3" fill="none" transform="rotate(155 50 50)" />
