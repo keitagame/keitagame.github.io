@@ -20,12 +20,12 @@
             background-color: #000214;
        
         } 
-          
-.bb{
+          @media screen and (max-width: 300px) {
+   .bb{
    
             color: #ffff00;
          
-            font-size: 120px;
+            font-size: 10px;
      background:linear-gradient(to right, #00ff7f, #00bfff);
    
      }
@@ -33,7 +33,7 @@
               background: linear-gradient(to right, red, yellow);  /* グラデーションの設定 */
             -webkit-background-clip: text;
             color: transparent;
-             font-size:120px;
+             font-size:10px;
           }
         .e {
           
@@ -41,13 +41,46 @@
             -webkit-background-clip: text;
             color: transparent;
          
-            font-size: 120px;
+            font-size: 10px;
+        }
+}
+
+/* 画面が幅900px以上の場合のフォントサイズ */
+@media screen and (min-width: 900px) {
+   
+}
+.bb{
+   
+            color: #ffff00;
+         
+            font-size: 100px;
+     background:linear-gradient(to right, #00ff7f, #00bfff);
+   
+     }
+         .bk{
+           margin-top:100px;
+              background: linear-gradient(to right, red, yellow);  /* グラデーションの設定 */
+            -webkit-background-clip: text;
+            color: transparent;
+             font-size:100px;
+          }
+        .e {
+          
+            background: linear-gradient(to right, #4b38d6, #fff);  /* グラデーションの設定 */
+            -webkit-background-clip: text;
+            color: transparent;
+         
+            font-size: 100px;
         }
        h2 {
           margin-left:90px;
             color: #fff;
             }
           .menu{
+          position: fixed;
+    top: 0; /* 要素を画面の上部に固定 */
+    left: 0; 
+      width: 100%;
             display:flex;
            margin:-6px;
              background:black;
