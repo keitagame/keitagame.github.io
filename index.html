@@ -146,9 +146,33 @@ margin:-6px;
 　　<h1></h1>
    <h1 class = "ww">此処は何処か</h1>
    <h1 class ="l">此処は誰でも輝ける場所だ…以上</h1>
-    
+    <div id="disqus_thread"></div>
     <div id="particles-js"></div>
    <div class="usiro"><h2>ByKeita</h2></div>
+    <script> // script.js
+document.addEventListener('DOMContentLoaded', function() {
+  const themeSwitcher = document.getElementById('themeSwitcher');
+  const editor = document.getElementById('editor');
+  const saveBtn = document.getElementById('saveBtn');
+
+  
+
+  
+
+  // Disqusの初期化
+  var disqus_config = function () {
+    this.page.url = 'https://keitagame.github.com/';  // Replace with your page's canonical URL variable
+    this.page.identifier = 'article-id'; // Replace with your page's unique identifier variable
+  };
+
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://keitacomment.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+});
+</script>
     <script>
        particlesJS("particles-js", {
             "particles": {
