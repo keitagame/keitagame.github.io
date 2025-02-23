@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>keitagames</title>
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hachi+Maru+Pop&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@639&display=swap" rel="stylesheet">
+<style>
+       body{
+        
+          text-align: center;
+         background:#101010;
+        }
+        #results{
+          font-family: "Noto Sans JP", serif;
+  font-optical-sizing: auto;
+  font-weight: 639;
+  font-style: normal;
+        color:white;
+        }
+         #se{
+          height:50px;
+          width:100px;
+          background:#00a870;
+           border-radius: 10px;
+       border: 1px solid white;
+        font-size:20px;
+         color:white;
+        }
+       
+      .i{
+      font-family: "Hachi Maru Pop", serif;
+  font-weight: 400;
+  font-style: normal;
+     font-size:60px;
+       color:white;
+       }
+        #searchInput{
+       color:white;
+        border: 1px solid white;
+          background:black;
+         width:500px;
+         height:50px;
+         border-radius: 10px;
+           box-shadow: 0 0 15px rgba(0, 255, 204, 0.6), 0 0 30px rgba(0, 255, 204, 0.4);
+        }
+       @keyframes fadeInAndMove {
+  from {
+    opacity: 0;
+    transform: translateX(-100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+        .v{
+          opacity: 0;
+  animation-name: fadeInAndMove;
+  animation-duration: 3s;
+  animation-fill-mode: forwards;
+       }
+    </style>
+</head>
+<body>
+    <h1 class ="i">けいさーち🔎</h1>
+    <input type="text" id="searchInput" placeholder="検索キーワードを入力">
+    <button id ="se" onclick="performSearch()">検索</button>
+
+    <div id="results"></div>
+   <script>
+        const data = [
+            { title: "JavaScriptで検索エンジンを作る", url: "https://example.com/js-search-engine",text:"javascriptでの検索エンジンの作り方です" },
+            { title: "JavaScriptの基本", url: "https://example.com/js-basics",text:"ここではjavascriptの基本を教えてくれます" },
+            { title: "JavaScriptでのデータ処理", url: "https://example.com/js-data-processing",text:"データの扱い方です" }
+        ];
+
+        function performSearch() {
+            const query = document.getElementById('searchInput').value;
+            const results = search(query);
+            displayResults(results);
+        }
+
+        function search(query) {
+            return data.filter(item => item.title.includes(query));
+        }
+
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            if (results.length > 0) {
+                results.forEach(result => {
+                    const p = document.createElement('p');
+                   const d = document.createElement('div');
+                    const a = document.createElement('a');
+                    a.href = result.url;
+                    a.style.color ='#00ccf5';
+                    a.style.fontSize ='26px';
+                   a.style.textDecoration ='none';
+                  p.style.margin='40px';
+                    a.textContent = result.title;
+                    a.target = "_blank";  // 新しいタブでリンクを開く
+                     
+                   d.textContent = result.text;
+　　　　　　 p.className ='v';
+                    p.appendChild(a);
+                   p.appendChild(d);
+                    resultsDiv.appendChild(p);
+                });
+            } else {
+                resultsDiv.textContent = '結果が見つかりませんでした。';
+            }
+        }
+    </script>
+</body>
+</html>
