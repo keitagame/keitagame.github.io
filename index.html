@@ -3,207 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.9.0/localforage.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/countup.js/1.9.3/countUp.js"></script>
-  
-    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
-   <link rel="preconnect" href="https://fonts.googleapis.com">
+    <title>keitagames</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
- <title>keitagames</title>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,631;1,631&display=swap" rel="stylesheet">
     <style>
-        body {
-         
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #000214;
-       
-        } 
-        .usiro{
-            
-           　　background:black;
-             border-top: 0.1px solid #cecece;
-           }
-.bb{
-   
-            color: #ffff00;
-         
-            font-size: 100px;
-     background:linear-gradient(to right, #00ff7f, #00bfff);
-   
-     }
-         .bk{
-           margin-top:100px;
-              background: linear-gradient(to right, red, yellow);  /* グラデーションの設定 */
-            -webkit-background-clip: text;
-            color: transparent;
-             font-size:100px;
-          }
-        .e {
-          
-            background: linear-gradient(to right, #4b38d6, #fff);  /* グラデーションの設定 */
-            -webkit-background-clip: text;
-            color: transparent;
-         
-            font-size: 100px;
+       body{
+          text-align: center;
+         background:#000a12;
         }
-       h2 {
-          margin-left:90px;
-            color: #fff;
-            }
-          .menu{
-          position: fixed;
-    top: 0; /* 要素を画面の上部に固定 */
-    left: 0; 
-      width: 100%;
-            display:flex;
-           margin:-6px;
-             background:black;
-             border-bottom: 0.1px solid #cecece;
-          }
-       
-       .a{
-     
-            color:white;
-         
-            
-     margin-left:100px;
-       font-size:40px;
-       Display:flex;
-    }
-      .l{
-        color:white;
-      }
-        .b{
-     
-            color: white;
-         
-           
-     margin-left:200px;
-       font-size:60px;
-       Display:flex;
-    }
-　#counter{
-
-   }
-     .dd{
-        Display:flex;
+         .e{
+           height:0px;
+            box-shadow: 0 20px 5000px 13px #ff00ff;
        }
-   .ww{
-     font-size:70px;
-     color:#05fff3;
-      }
-    #particles-js {
-            width: 100%;
-            height: 300%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index:-10;
+        .title{
+       font-family: "Work Sans", serif;
+  font-optical-sizing: auto;
+  font-weight: 631;
+  font-style: normal;
+        font-size:60px;
+        color:white;
+        text-align: center;
+       }
+      .set{
+         font-family: "Work Sans", serif;
+  font-optical-sizing: auto;
+  font-weight: 631;
+  font-style: normal;
+        font-size:30px;
+        color:#a3a3a3;
+        text-align: center;
         }
-　
+        .center-grid {
+      display: grid;
+      place-items: center;
+      height: 30vh; /* 画面全体の高さを指定 */
+    }
+         .start{
+           text-align: center;
+            background:#00ad00;
+          height:70px;
+          width:200px;
+         display: flex;
+    align-items: center;
+    justify-content: center;
+            font-family: "Work Sans", serif;
+  font-optical-sizing: auto;
+  font-weight: 631;
+  font-style: normal;
+        font-size:30px;
+        color:white;
+        text-align: center;
+       border-radius: 10px;
+         }
+       .space{
+       height:300px;
+      }
+      .about{
+       font-family: "Work Sans", serif;
+  font-optical-sizing: auto;
+  font-weight: 631;
+  font-style: normal;
+        font-size:60px;
+        color:white;
+        text-align: center;
+       }
+       .minspace{
+         height:20px;
+     }
+     .s{
+         Display:flex;
+      }  
+     
     </style>
 </head>
 <body>
-     <div class="menu"><object data="logo.svg" type="image/svg+xml"></object><object data="p.svg" type="image/svg+xml"></object><object data="l.svg" type="image/svg+xml"></object></h1>
-    </div>
-     <h1 class="bk">ようこそ!!</h1>
-     <div class="dd">
-      <h1 class="bb">最高の</h1>
-   <h1 class="e">keitagamesへ</h1>
-    </div>
-      
-　　<h1 class="a">あなたがこのサイトを見つけるまでに</h1>
-   <h1 class="b"><div></div><div id="counter">0</div><div>人がこのサイトに訪れています</div></h1>
-　　<h1></h1>
-   <h1 class = "ww">此処は何処か</h1>
-   <h1 class ="l">此処は誰でも輝ける場所だ…以上</h1>
     
-    <div id="particles-js"></div>
-   <div class="usiro"><h2>このサイトへの感想を書いてくれ</h2><div id="disqus_thread"></div></div>
-    <script> // script.js
-document.addEventListener('DOMContentLoaded', function() {
-  const themeSwitcher = document.getElementById('themeSwitcher');
-  const editor = document.getElementById('editor');
-  const saveBtn = document.getElementById('saveBtn');
-
-  
-
-  
-
-  // Disqusの初期化
-  var disqus_config = function () {
-    this.page.url = 'https://keitagame.github.com/';  // Replace with your page's canonical URL variable
-    this.page.identifier = 'article-id'; // Replace with your page's unique identifier variable
-  };
-
-  (function() {
-    var d = document, s = d.createElement('script');
-    s.src = 'https://keitacomment.disqus.com/embed.js';
-    s.setAttribute('data-timestamp', +new Date());
-    (d.head || d.body).appendChild(s);
-  })();
-});
-</script>
-    <script>
-       particlesJS("particles-js", {
-            "particles": {
-                "number": {
-                    "value": 4,
-                    "density": {
-                        "enable": true,
-                        "value_area": 800
-                    }
-                },
-                "color": {
-                    "value": "#ffff00"
-                },
-                "shape": {
-                    "type": "star",
-                    "stroke": {
-                        "width": 0,
-                        "color": "#000000"
-                    },
-                    "polygon": {
-                        "nb_sides": 5
-                    },
-                    "image": {
-                        "src": "img/github.svg",
-                        "width": 100,
-                        "height": 100
-                    }
-                }
-              
-                
-            }
-        });
-    </script>
-    <script>
-        
-        // localForageでカウントを取得
-        localforage.getItem('page_view_count').then(function(count) {
-            // カウントが存在しない場合は初期値0を設定
-            if (count === null) {
-                count = 0;
-            } else {
-                count = parseInt(count);
-            }
-
-            // カウントを1増やす
-            count++;
-
-            // 更新したカウントをlocalForageに保存
-            localforage.setItem('page_view_count', count).then(function() {
-                // CountUp.jsでカウンターを表示
-                var counter = new CountUp('counter', 0, count);
-                if (!counter.error) {
-                    counter.start();
-                } else {
-                    console.error(counter.error);
-                }
-            });
-        });
-    </script>
+    <h1 class ="title">Wellcome to Keitagames</h1>
+    <h3 class ="set">This is the best place for interesting ideas, sample code, and documentation.</h3>
+    
+     <div class="center-grid"><div class ="s"><div class="start" onclick="location.href='ks.html';">let's go</div></div></div>
+    <div class="e"></div>
+    <div class ="space"></div>
+   <h1 class="about">Q What can you do here?</h1>
+    <div class="minspace"></div>
+        <h3 class ="set">A You can accumulate knowledge through a wealth of materials.</h3>
 </body>
 </html>
