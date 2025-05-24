@@ -1,92 +1,195 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>keitagames</title>
+    <link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,631;1,631&display=swap" rel="stylesheet">
-    <style>
-       body{
-          text-align: center;
-         background:#000a12;
-        }
-         .e{
-           height:0px;
-            box-shadow: 0 20px 5000px 13px #ff00ff;
-       }
-        .title{
-       font-family: "Work Sans", serif;
-  font-optical-sizing: auto;
-  font-weight: 631;
-  font-style: normal;
-        font-size:60px;
-        color:white;
-        text-align: center;
-       }
-      .set{
-         font-family: "Work Sans", serif;
-  font-optical-sizing: auto;
-  font-weight: 631;
-  font-style: normal;
-        font-size:30px;
-        color:#a3a3a3;
-        text-align: center;
-        }
-        .center-grid {
-      display: grid;
-      place-items: center;
-      height: 30vh; /* 画面全体の高さを指定 */
+<link href="https://fonts.googleapis.com/css2?family=Righteous&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet">
+    <meta charset="utf-8">
+   <style>
+    body{
+        background:black;
     }
-         .start{
-           text-align: center;
-            background:#00ad00;
-          height:70px;
-          width:200px;
-         display: flex;
-    align-items: center;
-    justify-content: center;
-            font-family: "Work Sans", serif;
-  font-optical-sizing: auto;
-  font-weight: 631;
-  font-style: normal;
+    .ktg{
+        margin-top:0px;
+        margin-left:30px;
         font-size:30px;
         color:white;
-        text-align: center;
-       border-radius: 10px;
-         }
-       .space{
-       height:300px;
-      }
-      .about{
-       font-family: "Work Sans", serif;
+       font-family: "Oswald", sans-serif;
   font-optical-sizing: auto;
-  font-weight: 631;
+  font-weight: 700;
   font-style: normal;
-        font-size:60px;
+    }
+    .con{
+        display: grid;
+        place-items: center;
+        margin-top:5px;
+        margin-left:50px;
+        width:130px;
+        height:40px;
+        font-size:18px;
+    
+       font-family: "Oswald", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 700;
+        font-style: normal;
+        background:white;
+        color:black;
+        border-radius: 50px;
+    }
+    .manu{
+        z-index:10;
         color:white;
-        text-align: center;
-       }
-       .minspace{
-         height:20px;
-     }
-     .s{
-         Display:flex;
-      }  
-     
-    </style>
+        display:flex;
+        position: fixed;
+        top: 0px;
+        left: 0px;
+        margin:0px;
+        width:100%;
+        height:50px;
+        
+    }
+    .kei2{
+        font-family: "Righteous", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  margin-left:504px;
+animation: slideIn2 7s ease-in-out forwards;
+        color:white;
+        font-size:90px;
+        margin-top:100px;
+    }
+    @keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  
+  to {
+    transform: rotate(360deg);
+  }
+}
+    .kei{
+        
+        animation: slideIn 6s ease-in-out forwards;
+        display:flex;
+        font-family: "Righteous", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  margin-left:34px;
+
+        color:white;
+        font-size:90px;
+        margin-top:100px;
+    }
+    .home{
+        margin-top:5px;
+        margin-left:230px;
+        font-size: 25px;
+        color:white;
+       font-family: "Oswald", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 700;
+  font-style: normal;
+    }
+    .oi{
+        margin-top:100px;
+        display:flex;
+    }
+    .hun{
+        margin-top:5px;
+        margin-left:280px;
+        font-size: 25px;
+    
+       font-family: "Oswald", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 700;
+  font-style: normal;
+    }
+    @keyframes slideIn {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+@keyframes slideIn2 {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+    .ktglogo{
+        animation: spin 10s ease-in-out infinite;
+        width:300px;
+        height:300px;
+        transform: scale(0.8);
+        margin-bottom:-60px;
+        margin-left:60px;
+    }
+    .ktgm{
+         margin-top:5px;
+        margin-left:70px;
+        font-size: 25px;
+    
+       font-family: "Oswald", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 700;
+  font-style: normal;
+    }
+    
+   </style>
 </head>
 <body>
+    <div class ="manu"><div class="ktg">keitagames</div><a class ="home" href="https://example.com" style="text-decoration: none; color: inherit;">
+    <div style="cursor: pointer;">
+        home
+    </div>
     
-    <h1 class ="title">Wellcome to Keitagames</h1>
-    <h3 class ="set">This is the best place for interesting ideas, sample code, and documentation.</h3>h3>
+</a>
+<a class ="ktgm" href="https://example.com" style="text-decoration: none; color: inherit;">
+    <div style="cursor: pointer;">
+        ktg
+    </div>
+</a>
+<div class ="con">contact</div>
+<div class ="hun" style="text-decoration: none; color: inherit;">
+    <div class="menu-button">☰</div>
+    <div class="dropdown">
+        <a class ="home" href="https://example.com" style="text-decoration: none; color: inherit;">
+    <div style="cursor: pointer;">
+        home
+    </div>
     
-     <div class="center-grid"><div class ="s"><div class="start" onclick="location.href='ks.html';">let's go</div></div></div>
-    <div class="e"></div>
-    <div class ="space"></div>
-   <h1 class="about">Q What can you do here?</h1>
-    <div class="minspace"></div>
-        <h3 class ="set">A You can accumulate knowledge through a wealth of materials.</h3>
+</a>
+<a class ="ktgm" href="https://example.com" style="text-decoration: none; color: inherit;">
+    <div style="cursor: pointer;">
+        ktg
+    </div>
+</a>
+    </div>
+</div>
+</div>
+
+<div class="oi"><div class ="kei">we are</div><object class ="ktglogo" type="image/svg+xml" data="ktg.svg"></object></div>
+<div class ="kei2">     keitagames</div>
+<h1 class ="do">皆さんへ</h1>
+<h2 class ="mon">ここは俺のサイトです。</h2>
+<h2 class ="mon">色々あるのでぜひ見ていってください</h2>
 </body>
 </html>
