@@ -1,196 +1,454 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <title>keitagameへようこそ</title>
-    <link rel="stylesheet" href="style.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Righteous&display=swap" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet">
-    <meta charset="utf-8">
-   <style>
-    body{
-        background:black;
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Keita Games</title>
+  <link rel="icon" href="/assets/img/logo.svg" type="image/svg+xml"/>
+  <link rel="apple-touch-icon" href="/assets/img/logo.svg" type="image/svg+xml"/>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    /* タップハイライトを消す */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    .ktg{
-        margin-top:0px;
-        margin-left:30px;
-        font-size:30px;
-        color:white;
-       font-family: "Oswald", sans-serif;
-  font-optical-sizing: auto;
-  font-weight: 700;
-  font-style: normal;
-    }
-    .con{
-        display: grid;
-        place-items: center;
-        margin-top:5px;
-        margin-left:50px;
-        width:130px;
-        height:40px;
-        font-size:18px;
-    
-       font-family: "Oswald", sans-serif;
-        font-optical-sizing: auto;
-        font-weight: 700;
-        font-style: normal;
-        background:white;
-        color:black;
-        border-radius: 50px;
-    }
-    .manu{
-        z-index:10;
-        color:white;
-        display:flex;
-        position: fixed;
-        top: 0px;
-        left: 0px;
-        margin:0px;
-        width:100%;
-        height:50px;
-        
-    }
-    .kei2{
-        font-family: "Righteous", sans-serif;
-  font-weight: 400;
-  font-style: normal;
-  margin-left:504px;
-animation: slideIn2 7s ease-in-out forwards;
-        color:white;
-        font-size:90px;
-        margin-top:100px;
-    }
-    @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  
-  to {
-    transform: rotate(360deg);
-  }
-}
-    .kei{
-        
-        animation: slideIn 6s ease-in-out forwards;
-        display:flex;
-        font-family: "Righteous", sans-serif;
-  font-weight: 400;
-  font-style: normal;
-  margin-left:34px;
 
-        color:white;
-        font-size:90px;
-        margin-top:100px;
+    html { font-family: 'Noto Sans JP', sans-serif; }
+    body {
+      background: #000000;
+      background-image:
+        linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      color: #ffffff;
+      line-height: 1.6;
     }
-    .home{
-        margin-top:5px;
-        margin-left:230px;
-        font-size: 25px;
-        color:white;
-       font-family: "Oswald", sans-serif;
-  font-optical-sizing: auto;
-  font-weight: 700;
-  font-style: normal;
+    a { color: inherit; text-decoration: none; touch-action: manipulation; }
+
+    header {
+      position: fixed;
+      top: 10px; left: 10px; right: 10px;
+      display: flex; align-items: center;
+      padding: .75rem 1.5rem;
+      background: rgba(255, 255, 255, 0);
+      backdrop-filter: blur(8px);
+      border-radius: 50px;
+      z-index: 1000;
     }
-    .oi{
-        margin-top:100px;
-        display:flex;
+    .logo { display: flex; align-items: center; }
+    .logo img {
+      width: 48px; height: 48px;
+      margin-right: .75rem;
+      border-radius: 10px;
     }
-    .hun{
-        margin-top:5px;
-        margin-left:280px;
-        font-size: 25px;
-    
-       font-family: "Oswald", sans-serif;
-  font-optical-sizing: auto;
-  font-weight: 700;
-  font-style: normal;
+    .logo-text {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #ffffff;
     }
-    @keyframes slideIn {
-    from {
-        transform: translateX(-100%);
-        opacity: 0;
+
+    nav {
+      margin-left: auto;
+      display: flex;
+      gap: 1rem;
+      position: relative;
     }
-    to {
-        transform: translateX(0);
-        opacity: 1;
+    .nav-item {
+      padding: .4rem .8rem;
+      font-weight: 500;
+      cursor: pointer;
     }
-}
-@keyframes slideIn2 {
-    from {
-        transform: translateX(-100%);
-        opacity: 0;
+    .nav-item:hover { opacity: .7; }
+    .nav-underline {
+      position: absolute;
+      bottom: -4px;
+      height: 2px;
+      background: #00ffdd;
+      transition: left .3s ease, width .3s ease;
     }
-    to {
-        transform: translateX(0);
-        opacity: 1;
+
+    .hamburger {
+      display: none;
+      margin-left: auto;
+      width: 30px; height: 24px;
+      cursor: pointer;
+      flex-direction: column;
+      position: relative;
     }
-}
-    .ktglogo{
-        animation: spin 10s ease-in-out infinite;
-        width:300px;
-        height:300px;
-        transform: scale(0.8);
-        margin-bottom:-60px;
-        margin-left:60px;
+    .hamburger span {
+      position: absolute;
+      left: 0;
+      height: 3px;
+      background: #ffffff;
+      border-radius: 2px;
+      transition: top .3s, transform .3s, opacity .3s;
     }
-    .ktgm{
-         margin-top:5px;
-        margin-left:70px;
-        font-size: 25px;
-    
-       font-family: "Oswald", sans-serif;
-  font-optical-sizing: auto;
-  font-weight: 700;
-  font-style: normal;
+    .line1 { top: 0; width: 16px; }
+    .line2 { top: 10px; width: 30px; }
+    .line3 { top: 20px; width: 24px; }
+    .hamburger.active .line1 {
+      top: 10px;
+      width: 30px;
+      transform: rotate(45deg);
     }
-    
-   </style>
+    .hamburger.active .line2 { opacity: 0; }
+    .hamburger.active .line3 {
+      top: 10px;
+      width: 30px;
+      transform: rotate(-45deg);
+    }
+
+    .overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(8px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      z-index: 900;
+    }
+    .overlay.active { display: flex; overflow: hidden; }
+    .overlay a {
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: #3749F9;
+    }
+
+    main.container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding-top: 6rem;
+    }
+    #hero img {
+      position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+    }
+    #hero {
+       position: relative;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 0 2rem;
+      color: #00ffdd;
+      background: #f1f5fa;
+      background-image:
+        radial-gradient(circle at center, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%),
+        linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px);
+      background-size: auto, 40px 40px, 40px 40px;
+    }
+    #hero h2 {background:black; font-size: 3rem; margin-bottom: 1rem; position: relative;
+    z-index: 2;}
+    #hero p  { background:black; font-size: 1.2rem; margin-bottom: 2rem; max-width: 600px; position: relative;
+    z-index: 2;}
+
+    .btn {
+      border: 1px solid #00ffdd;
+      z-index: 2;
+      position: relative;
+      overflow: hidden;
+      padding: 1rem 2rem;
+      font-size: 1.1rem;
+      background: linear-gradient(45deg, #000000, #000000);
+      color: #fff;
+      
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: rgba(255,255,255,0.3);
+      transition: left .5s;
+    }
+    .btn:hover::before,
+    .btn.animate::before { left: 100%; }
+    .btn:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 12px rgba(0,0,0,0.1);
+    }
+
+    .section-title {
+      --delay: 0s;
+      opacity: 0;
+      transform: translateY(20px);
+      position: relative;
+      font-size: 2rem;
+      margin: 2rem 0 1rem;
+      padding-left: 1rem;
+    }
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: -5px; left: 1rem;
+      width: 0; height: 4px;
+      background: linear-gradient(45deg, #00ffdd, #00ffd0);
+    }
+    .visible {
+      animation: fadeUpText .6s forwards;
+      animation-delay: var(--delay);
+    }
+    .visible::after {
+      animation: drawUL .6s forwards;
+      animation-delay: calc(var(--delay) + .5s);
+    }
+    @keyframes fadeUpText {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes drawUL {
+      to { width: 60px; }
+    }
+
+    #about p {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 0 2rem;
+      text-align: center;
+    }
+    @media(min-width: 768px) {
+      #about p { text-align: left; }
+    }
+
+    .projects {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      padding: 0 2rem 2rem;
+    }
+    .project-item {
+      border:1px solid #00ffdd;
+      background: #ffffff00;
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .project-item h4 { color: #00ffdd; margin-bottom: .75rem; }
+    .project-item p  { font-size: .95rem; line-height: 1.4; }
+
+    .links-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+      padding: 0 2rem 4rem;
+    }
+    .link-card {
+      border:1px solid #00ffdd;
+      background: #ffffff00;
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      margin-bottom: 1rem;
+    }
+    .card-header img { width: 32px; height: 32px; }
+    .card-header h4 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: #ffffff;
+    }
+    .link-card p {
+      font-size: .95rem;
+      line-height: 1.4;
+      margin-bottom: 1rem;
+    }
+    .btn-link {
+      display: block;
+      padding: .6rem 1.2rem;
+      font-size: 1rem;
+      background: linear-gradient(45deg, #00ffdd, #00ffda);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .btn-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      font-size: .9rem;
+      color: #333;
+    }
+    @media(max-width: 768px) {
+      nav { display: none; }
+      .hamburger { display: flex; }
+    }
+  </style>
 </head>
 <body>
-    <div class ="manu"><div class="ktg">keitagames</div><a class ="home" href="https://example.com" style="text-decoration: none; color: inherit;">
-    <div style="cursor: pointer;">
-        home
-    </div>
-    
-</a>
-<a class ="ktgm" href="https://example.com" style="text-decoration: none; color: inherit;">
-    <div style="cursor: pointer;">
-        ktg
-    </div>
-</a>
-<div class ="con">contact</div>
-<div class ="hun" style="text-decoration: none; color: inherit;">
-    <div class="menu-button">☰</div>
-    <div class="dropdown">
-        <a class ="home" href="https://example.com" style="text-decoration: none; color: inherit;">
-    <div style="cursor: pointer;">
-        home
-    </div>
-    
-</a>
-<a class ="ktgm" href="https://example.com" style="text-decoration: none; color: inherit;">
-    <div style="cursor: pointer;">
-        ktg
-    </div>
-</a>
-    </div>
-</div>
+
+<header>
+  <div class="logo">
+    <img src="logo.svg" alt="Keita Games ロゴ"/>
+    <span class="logo-text">Keita Games</span>
+  </div>
+  <nav>
+    <a href="#home" class="nav-item" id="nav-home">Home</a>
+    <a href="/project" class="nav-item" id="nav-projects">Project</a>
+    <span class="nav-underline"></span>
+  </nav>
+  <div class="hamburger" id="hamburger">
+    <span class="line1"></span>
+    <span class="line2"></span>
+    <span class="line3"></span>
+  </div>
+</header>
+
+<div class="overlay" id="overlay">
+  <a href="#home">Home</a>
+  <a href="/project">Project</a>
 </div>
 
-<div class="oi"><div class ="kei">we are</div><object class ="ktglogo" type="image/svg+xml" data="ktg.svg"></object></div>
-<div class ="kei2">     keitagames</div>
-<h1 class ="do">皆さんへ</h1>
-<h2 class ="mon">ここは俺のサイトです。</h2>
-<h2 class ="mon">色々あるのでぜひ見ていってください</h2>
+<main id="home" class="container">
+  <section id="hero">
+    <img src="https://images.unsplash.com/photo-1503058474900-cb76710f9cd1?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8JUUzJTgzJThEJUUzJTgyJUFBJUUzJTgzJUIzJUU1JUEzJTgxJUU3JUI0JTk5fGVufDB8fDB8fHww" alt="背景画像" class="background-image">
+    <h2>ここにテキストここにテキス</h2>
+    <p>サブタイトル</p>
+    <button class="btn" id="moreBtn">More</button>
+  </section>
+
+  <section id="about">
+    <h2 class="section-title" data-delay="0.1s">About Us</h2>
+    <p>ここにテキストここにテキストここにテキストここにテキストここにテキストここにテキストここにテキスト</p>
+  </section>
+
+  <section id="projects">
+    <h2 class="section-title" data-delay="0.2s">Project</h2>
+    <div class="projects">
+      <div class="project-item">
+        <h4>プロジェクト1</h4>
+        <p>ここにテキストここにテキストここにテキストここにテキスト</p>
+      </div>
+      <div class="project-item">
+        <h4>プロジェクト2</h4>
+        <p>ここにテキストここにテキストここにテキスト</p>
+      </div>
+      <div class="project-item">
+        <h4>プロジェクト3</h4>
+        <p>ここにテキストここにテキストここにテキストここにテキストここにテキスト</p>
+      </div>
+    </div>
+
+    <h2 class="section-title" data-delay="0.3s">Link</h2>
+    <div class="links-cards">
+      <div class="link-card">
+        <div class="card-header">
+          <img src="discord.svg" alt="Discord"/>
+          <h4>Discord</h4>
+        </div>
+        <p>ここにテキストここにテキストここにテキスト</p>
+        <a href="https://discord.gg/Zt3keT57dG" target="_blank" class="btn-link">join</a>
+      </div>
+      <div class="link-card">
+        <div class="card-header">
+          <img src="github.svg" alt="GitHub"/>
+          <h4>GitHub</h4>
+        </div>
+        <p>ここにテキストここにテキストここにテキスト</p>
+        <a href="https://github.com/keitagames-developers" target="_blank" class="btn-link">join</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>© 2025 Keita Games. All Rights Reserved。</footer>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const header      = document.querySelector('header');
+    const navHome     = document.getElementById('nav-home');
+    const navProject  = document.getElementById('nav-projects');
+    const navItems    = document.querySelectorAll('.nav-item');
+    const underline   = document.querySelector('.nav-underline');
+    const hamburger   = document.getElementById('hamburger');
+    const overlay     = document.getElementById('overlay');
+    const moreBtn     = document.getElementById('moreBtn');
+    const about       = document.getElementById('about');
+    const titles      = document.querySelectorAll('.section-title');
+
+    // nav下線セット
+    function updateUnderline(el) {
+      underline.style.left  = el.offsetLeft + 'px';
+      underline.style.width = el.offsetWidth + 'px';
+    }
+    // パスに応じてactive
+    function setActiveNav() {
+      const path = location.pathname;
+      if (path.startsWith('/project')) {
+        updateUnderline(navProject);
+      } else {
+        updateUnderline(navHome);
+      }
+    }
+    setActiveNav();
+    window.addEventListener('resize', setActiveNav);
+    navItems.forEach(item => {
+      item.addEventListener('mouseenter', () => updateUnderline(item));
+      item.addEventListener('mouseleave', setActiveNav);
+    });
+
+    // ハンバーガー開閉
+    hamburger.addEventListener('click', () => {
+      hamburger.classList.toggle('active');
+      overlay.classList.toggle('active');
+    });
+    overlay.addEventListener('click', () => {
+      hamburger.classList.remove('active');
+      overlay.classList.remove('active');
+    });
+
+    // More押下でAboutへ（ヘッダー高さオフセット）
+    moreBtn.addEventListener('click', () => {
+      const y = about.getBoundingClientRect().top
+              + window.pageYOffset
+              - header.offsetHeight;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    });
+
+    // タイトル表示アニメ
+    const obs = new IntersectionObserver((entries, io) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        e.target.style.setProperty('--delay', e.target.dataset.delay || '0s');
+        e.target.classList.add('visible');
+        io.unobserve(e.target);
+      });
+    }, { threshold: 0.3 });
+    titles.forEach(t => obs.observe(t));
+  });
+</script>
 </body>
 </html>
