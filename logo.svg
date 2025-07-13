@@ -1,10 +1,39 @@
-<svg width="300" height="100" xmlns="http://www.w3.org/2000/svg">
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="200"
+  height="200"
+  viewBox="0 0 200 200"
+>
+
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" style="stop-color:#3a4af9;stop-opacity:1" />
+      <stop offset="25%" style="stop-color:#6b5dfb;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#b15cfb;stop-opacity:1" />
+      <stop offset="75%" style="stop-color:#5cfbf9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3a4af9;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <style>
+    body {
+      background: black;
+    }
+  </style>
+
+  <g transform="rotate(45, 100, 100)">
+    <g transform="translate(70, 70)">
+      <rect x="0" y="0" width="50" height="20" fill="url(#grad)" />
       
-        <text x="97" y="80" font-family="Archivo" font-size="40" fill="white" font-weight="bold">central</text>
-      <text x="27" y="80" font-family="Arial" font-size="70" fill="white" font-weight="bold">K</text>
-      <ellipse cx="53" cy="46" rx="37" ry="10" stroke="white" stroke-width="3" fill="none" transform="rotate(155 50 50)" />
-     <ellipse cx="53" cy="46" rx="40" ry="10" stroke="white" stroke-width="3" fill="none" transform="rotate(155 50 50)" />
-       <ellipse cx="53" cy="46" rx="42" ry="10" stroke="white" stroke-width="3" fill="none" transform="rotate(155 50 50)" />
-     <ellipse cx="53" cy="46" rx="44" ry="10" stroke="white" stroke-width="3" fill="none" transform="rotate(155 50 50)" />
-     <ellipse cx="53" cy="46" rx="47" ry="10" stroke="white" stroke-width="3" fill="none" transform="rotate(155 50 50)" />
+      <rect x="60" y="0" width="20" height="20" fill="url(#grad)" />
+
+      <rect x="0" y="30" width="80" height="20" fill="url(#grad)" />
+     
+      <rect x="10" y="30" width="50" height="20" fill="url(#grad)" />
+
+      <rect x="0" y="60" width="20" height="20" fill="url(#grad)" />
+      <rect x="30" y="60" width="20" height="20" fill="url(#grad)" />
+    </g>
+  </g>
+
 </svg>
