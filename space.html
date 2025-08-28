@@ -3,231 +3,395 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Space P2P Chat — Single HTML</title>
+<title>P2P Chat - Single HTML</title>
 <style>
   :root{
-    --glass: rgba(255,255,255,0.08);
-    --border: rgba(255,255,255,0.22);
-    --neon:#7df9ff; --neon2:#9c6bff;
-    --text:#e8f1ff; --muted:#a9b3c7;
+    --bg:#0f1115; --card:#151926cc; --muted:#99a2b2; --text:#e7ebf3; --accent:#6ea8fe;
+    --ok:#2ecc71; --bad:#ff6b6b; --chip:#232938; --bubble-me:#2a3450; --bubble-you:#1f2636;
+    --shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.02);
+    --radius:16px; --radius-sm:10px;
   }
-  html,body{height:100%;margin:0;background:#020617;color:var(--text);
-    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial}
-  canvas#stars{position:fixed;inset:0;z-index:-2}
-  .halo{position:fixed;left:50%;top:45%;transform:translate(-50%,-50%);
-    width:62vmin;height:62vmin;border-radius:50%;
-    box-shadow:0 0 140px 40px rgba(125,249,255,.16), inset 0 0 260px 70px rgba(156,107,255,.12);
-    filter:blur(2px);z-index:-1}
-  .wrap{max-width:1000px;margin:6vh auto;padding:20px;display:grid;gap:18px;
-    grid-template-columns:360px 1fr}
-  @media (max-width:900px){.wrap{grid-template-columns:1fr}}
-  .panel{backdrop-filter: blur(12px) saturate(120%);
-    background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
-    border:1px solid var(--border);border-radius:16px;padding:16px;
-    box-shadow:0 10px 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.04)}
-  .panel h2{margin:4px 0 10px}
-  .hint{color:var(--muted);font-size:13px}
-  textarea,input[type=text]{width:100%;border-radius:12px;border:1px solid var(--border);
-    background:var(--glass);color:var(--text);outline:none}
-  textarea{min-height:120px;padding:10px;resize:vertical}
-  .row{display:flex;gap:8px;align-items:center;margin:8px 0}
-  button{padding:10px 12px;border-radius:12px;border:1px solid var(--border);
-    background:linear-gradient(180deg,#1b2333,#151b28);color:var(--text);cursor:pointer;
-    font-weight:600;transition:transform .06s, box-shadow .2s}
-  button:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(125,249,255,.15)}
-  button.primary{border-color:rgba(125,249,255,.4);box-shadow:inset 0 0 18px rgba(125,249,255,.14)}
-  .badge{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid var(--border);
-    background:var(--glass);font-size:12px}
-  .statusRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 16px currentColor}
-  .chat{height:62vh;min-height:360px;display:flex;flex-direction:column}
-  .log{flex:1;overflow:auto;padding:12px;border-radius:12px;border:1px dashed rgba(255,255,255,.18);
-    background:linear-gradient(180deg, rgba(0,10,24,.45), rgba(10,8,28,.45))}
-  .msg{display:flex;gap:10px;margin:8px 0;align-items:flex-end}
-  .msg.me{flex-direction:row-reverse}
-  .bubble{max-width:68%;padding:10px 12px;border-radius:12px;
-    background:rgba(125,249,255,.09);border:1px solid rgba(125,249,255,.25);
-    box-shadow:0 6px 20px rgba(125,249,255,.12);white-space:pre-wrap;word-wrap:break-word}
-  .msg.me .bubble{background:rgba(156,107,255,.10);border-color:rgba(156,107,255,.35);
-    box-shadow:0 6px 20px rgba(156,107,255,.16)}
-  .meta{font-size:11px;color:var(--muted);margin:0 6px}
-  .inputRow{display:flex;gap:8px;margin-top:10px}
-  .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:6px}
+  [data-theme="light"]{
+    --bg:#f4f6fb; --card:#ffffffcc; --muted:#5a667c; --text:#111827; --accent:#2563eb;
+    --ok:#10b981; --bad:#ef4444; --chip:#eef2ff; --bubble-me:#dbeafe; --bubble-you:#f3f4f6;
+    --shadow: 0 10px 30px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.6);
+  }
+  html,body{height:100%}
+  body{
+    margin:0; background: radial-gradient(1200px 1200px at 10% -10%, #1b2030 0%, var(--bg) 40%) no-repeat fixed;
+    color:var(--text); font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    transition: background .3s ease, color .3s ease;
+  }
+  [data-theme="light"] body{
+    background: radial-gradient(1200px 1200px at 90% -10%, #e8f0ff 0%, var(--bg) 40%) no-repeat fixed;
+  }
+  .wrap{max-width:1100px; margin:40px auto; padding:0 16px;}
+  .app{display:grid; grid-template-columns: 340px 1fr; gap:18px}
+  @media (max-width: 900px){ .app{grid-template-columns: 1fr} }
+
+  .card{
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); backdrop-filter: blur(10px);
+    border:1px solid rgba(255,255,255,.08);
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; padding:18px 20px;
+  }
+  .title{display:flex; align-items:center; gap:12px; font-weight:700; letter-spacing:.3px;}
+  .badge{
+    padding:5px 10px; border-radius:999px; font-size:12px; background:var(--chip); color:var(--muted);
+    display:inline-flex; align-items:center; gap:.5ch; border:1px solid rgba(255,255,255,.06);
+  }
+  .status-dot{width:8px; height:8px; border-radius:50%; background:var(--bad); box-shadow:0 0 0 3px rgba(255,107,107,.15);}
+  .status-dot.ok{background:var(--ok); box-shadow:0 0 0 3px rgba(46,204,113,.15);}
+  .controls{display:flex; align-items:center; gap:8px}
+  .btn{
+    border:1px solid rgba(255,255,255,.08); background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.06));
+    color:var(--text); padding:9px 12px; border-radius:10px; cursor:pointer; font-weight:600;
+    transition: transform .05s ease, filter .2s ease; user-select:none;
+  }
+  .btn:active{ transform: scale(.98); }
+  .btn.primary{ background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 70%, black)); border-color:transparent; color:white; }
+  .btn.ghost{ background:transparent }
+  .btn.small{ padding:6px 9px; font-size:12px }
+  .field{display:flex; flex-direction:column; gap:6px; margin:10px 0 14px}
+  label{font-size:12px; color:var(--muted)}
+  textarea, input[type="text"]{
+    width:100%; padding:12px 12px; background:#0e1524; border:1px solid rgba(255,255,255,.06);
+    border-radius:12px; color:var(--text); outline:none; resize:vertical; min-height:44px;
+  }
+  [data-theme="light"] textarea, [data-theme="light"] input[type="text"]{
+    background:#f8fafc; border-color: #e5e7eb;
+  }
+  textarea.sdp{min-height:100px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px}
+  .chat{display:flex; flex-direction:column; height:72vh}
+  .messages{flex:1; overflow:auto; padding:10px 16px 2px 16px; scroll-behavior:smooth}
+  .row{display:flex; margin:8px 0}
+  .bubble{
+    max-width:68%; padding:10px 14px; border-radius:16px; box-shadow: var(--shadow);
+    white-space:pre-wrap; word-break:break-word;
+  }
+  .me{justify-content:flex-end}
+  .me .bubble{background:var(--bubble-me); border-bottom-right-radius:6px}
+  .you .bubble{background:var(--bubble-you); border-bottom-left-radius:6px}
+  .meta{display:flex; align-items:center; gap:8px}
+  .time{font-size:11px; color:var(--muted); margin-top:4px}
+  .composer{display:flex; gap:8px; padding:12px; border-top:1px solid rgba(255,255,255,.08)}
+  .composer input{flex:1}
+  .side{padding:14px}
+  .section{padding:14px; border-top:1px dashed rgba(255,255,255,.08)}
+  .tips{font-size:12px; color:var(--muted)}
+  .chip{font-size:11px; padding:4px 8px; border-radius:999px; background:var(--chip); border:1px solid rgba(255,255,255,.08)}
+  .copyrow{display:flex; gap:8px}
+  .hr{height:1px; background:linear-gradient(90deg, transparent, rgba(255,255,255,.1), transparent); margin:12px 0}
+  .kbd{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:var(--chip); padding:1px 6px; border-radius:6px; border:1px solid rgba(255,255,255,.08)}
 </style>
 </head>
 <body>
-<canvas id="stars"></canvas>
-<div class="halo"></div>
+  <div class="wrap">
+    <div class="app">
+      <!-- Left: Connection / Settings -->
+      <div class="card side">
+        <header>
+          <div class="title">🔗 接続</div>
+          <div class="badge"><span id="dot" class="status-dot"></span><span id="state">Disconnected</span></div>
+        </header>
 
-<div class="wrap">
-  <section class="panel">
-    <h2>🛰️ 手動シグナリング（コピペ方式）</h2>
-    <div class="row statusRow">
-      <span class="badge" id="role">role: -</span>
-      <span class="badge" id="state">rtc: -</span>
-      <span title="WebRTC" class="dot" id="rtcDot" style="color:#888"></span>
-      <span title="DataChannel" class="dot" id="dcDot" style="color:#888"></span>
+        <div class="section">
+          <div class="field">
+            <label>あなたの表示名</label>
+            <div style="display:flex; gap:8px">
+              <input id="nickname" type="text" placeholder="例）Taro" />
+              <button class="btn small" id="saveName">保存</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>役割を選択</label>
+            <div class="meta" style="gap:8px">
+              <button class="btn primary small" id="btnOffer">ホスト（Offerを作成）</button>
+              <button class="btn small" id="btnAnswer">ゲスト（Answerを作成）</button>
+              <button class="btn ghost small" id="btnReset">リセット</button>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="field">
+            <label>あなたのSDP（生成されたら相手へ渡す）</label>
+            <div class="copyrow">
+              <textarea id="localSdp" class="sdp" readonly placeholder="ここに自動出力されます"></textarea>
+            </div>
+            <div class="meta" style="gap:8px; margin-top:6px">
+              <button class="btn small" id="copyLocal">コピー</button>
+              <span class="tips">※ 長い文字列は自動的にBase64化しています</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>相手のSDP（相手から受け取った文字列を貼る）</label>
+            <textarea id="remoteSdp" class="sdp" placeholder="相手のSDP文字列（Base64可）を貼って下さい"></textarea>
+            <div class="meta" style="gap:8px; margin-top:6px">
+              <button class="btn primary small" id="applyRemote">相手SDPを適用</button>
+              <button class="btn ghost small" id="clearRemote">クリア</button>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+          <div class="meta" style="justify-content:space-between">
+            <div class="tips">
+              <span class="chip">P2P / WebRTC</span>
+              <span class="chip">手動シグナリング</span>
+              <span class="chip">暗号化</span>
+            </div>
+            <button class="btn small" id="toggleTheme">🌗 テーマ</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right: Chat -->
+      <div class="card">
+        <header>
+          <div class="title">💬 P2P Chat <span id="role" class="chip">未選択</span></div>
+          <div class="controls">
+            <button class="btn small" id="saveLog">ログ保存</button>
+            <button class="btn small" id="clearChat">履歴クリア</button>
+          </div>
+        </header>
+
+        <div class="chat">
+          <div id="messages" class="messages"></div>
+          <div class="composer">
+            <input id="input" type="text" placeholder="メッセージを入力…" disabled />
+            <button class="btn primary" id="send" disabled>送信</button>
+          </div>
+        </div>
+
+        <div class="section tips">
+          使い方：<strong>ホスト</strong>が「Offerを作成」→ 出力を相手へ。<strong>ゲスト</strong>は相手SDPに貼って「Answerを作成」→ 出力をホストへ返す → ホストは相手SDPを適用。<br/>
+          <span class="kbd">Enter</span> 送信 / <span class="kbd">Shift+Enter</span> 改行。
+        </div>
+      </div>
     </div>
-    <p class="hint">
-      1) どちらかが「オファーを生成」→出力を相手へ。<br>
-      2) 受け取った側は「相手のSDP」に貼って「アンサーを生成」→返送。<br>
-      3) 最初の人は「相手のSDP」にアンサーを貼って「アンサーを適用」。<br>
-      （ICE 完了を待ってから出力するので、候補のコピペは不要です）
-    </p>
-
-    <div class="row">
-      <button class="primary" id="btnMakeOffer">① オファーを生成</button>
-      <button id="btnApplyAnswer">③ アンサーを適用</button>
-    </div>
-
-    <div class="row">
-      <button id="btnMakeAnswer">② アンサーを生成</button>
-      <button id="btnReset">リセット</button>
-    </div>
-
-    <label class="hint">相手のSDP（もらったテキストを貼る）</label>
-    <textarea id="remoteSdp" placeholder="ここに相手の SDP テキスト（このページで生成された Base64 文字列）を貼る"></textarea>
-
-    <label class="hint">あなたのSDP（相手に送る用・自動生成）</label>
-    <textarea id="localSdp" readonly placeholder="ここに自動生成されます。これを相手に渡してください。"></textarea>
-  </section>
-
-  <section class="panel chat">
-    <h2>🌌 Space Chat (P2P)</h2>
-    <div id="log" class="log" aria-live="polite"></div>
-    <div class="inputRow">
-      <textarea id="text" placeholder="メッセージを入力…（Enter送信 / Shift+Enter改行）"></textarea>
-      <button class="primary" id="send">送信 ⟶</button>
-    </div>
-    <div class="foot">Single-file WebRTC DataChannel Chat © You</div>
-  </section>
-</div>
+  </div>
 
 <script>
-/* ==== 星空背景 ==== */
-(function(){
-  const c = document.getElementById('stars'), ctx = c.getContext('2d');
-  let w,h,stars=[];
-  function resize(){ w=c.width=innerWidth; h=c.height=innerHeight;
-    const n = Math.min(420, Math.floor((w*h)/6000));
-    stars = Array.from({length:n}, ()=>({x:Math.random()*w,y:Math.random()*h,z:Math.random()+.2,s:Math.random()*1.6+.2}));
-  }
-  function tick(){ ctx.clearRect(0,0,w,h); ctx.fillStyle='#fff';
-    for(const s of stars){ s.x+=s.z*.6; s.y+=s.z*.15; if(s.x>w||s.y>h){ s.x=Math.random()*w*0.2; s.y=-10 }
-      ctx.globalAlpha=s.z*.9; ctx.fillRect(s.x,s.y,s.s,s.s);
-    } requestAnimationFrame(tick);
-  }
-  addEventListener('resize', resize); resize(); tick();
-})();
+(() => {
+  // --- UI helpers ---
+  const $ = sel => document.querySelector(sel);
+  const dot = $('#dot'), stateEl = $('#state'), roleEl = $('#role');
+  const localSdpEl = $('#localSdp'), remoteSdpEl = $('#remoteSdp');
+  const input = $('#input'), sendBtn = $('#send'), messages = $('#messages');
+  const nickname = $('#nickname');
 
-/* ==== ユーティリティ ==== */
-const $ = q => document.querySelector(q);
-const logEl = $('#log');
-function addMsg(text, me=false){
-  const wrap = document.createElement('div'); wrap.className='msg'+(me?' me':'');
-  const bubble = document.createElement('div'); bubble.className='bubble'; bubble.textContent = text;
-  const meta = document.createElement('div'); meta.className='meta'; meta.textContent = new Date().toLocaleTimeString();
-  wrap.appendChild(bubble); wrap.appendChild(meta); logEl.appendChild(wrap);
-  logEl.scrollTop = logEl.scrollHeight;
-}
-function setBadge(id, text){ document.getElementById(id).textContent = text; }
-function b64encode(obj){ return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); }
-function b64decode(str){ return JSON.parse(decodeURIComponent(escape(atob(str)))); }
+  const setStatus = (txt, ok=false) => {
+    stateEl.textContent = txt;
+    dot.classList.toggle('ok', ok);
+  };
+  const now = () => new Date();
+  const timeStr = () => {
+    const d = now();
+    const pad = n => String(n).padStart(2,'0');
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const addMsg = (text, me=false, name='You') => {
+    const row = document.createElement('div');
+    row.className = 'row ' + (me ? 'me' : 'you');
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    const who = document.createElement('div');
+    who.className = 'meta'; who.style.fontSize='12px'; who.style.color='var(--muted)';
+    who.textContent = me ? (storedName() || 'Me') : name;
+    const t = document.createElement('div');
+    t.textContent = text;
+    const ts = document.createElement('div'); ts.className='time'; ts.textContent = timeStr();
+    b.appendChild(who); b.appendChild(t); b.appendChild(ts);
+    row.appendChild(b);
+    messages.appendChild(row);
+    messages.scrollTop = messages.scrollHeight;
+  };
+  const storedName = () => localStorage.getItem('p2pname') || '';
+  const setTheme = (mode) => {
+    document.documentElement.setAttribute('data-theme', mode);
+    localStorage.setItem('p2ptheme', mode);
+  };
 
-/* ==== WebRTC（手動シグナリング） ==== */
-let pc=null, dc=null, role='-';
-const iceConfig = { iceServers:[ {urls:'stun:stun.l.google.com:19302'}, {urls:'stun:global.stun.twilio.com:3478?transport=udp'} ] };
+  // persist name & theme
+  nickname.value = storedName();
+  const savedTheme = localStorage.getItem('p2ptheme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  setTheme(savedTheme);
 
-function updateStates(){
-  if(!pc) { $('#rtcDot').style.color='#888'; setBadge('state','rtc: -'); return; }
-  const st = pc.iceConnectionState;
-  $('#rtcDot').style.color = (st==='connected'||st==='completed')? '#6bffb0' : (st==='failed'? '#ff6b9c' : '#ffc66b');
-  setBadge('state','rtc: '+st);
-}
-function bindDC(){
-  dc.onopen = ()=>{ $('#dcDot').style.color='#6bffb0'; addMsg('✅ DataChannel open'); };
-  dc.onclose= ()=>{ $('#dcDot').style.color='#888'; addMsg('❌ DataChannel closed'); };
-  dc.onmessage = e => addMsg(e.data, false);
-}
+  // --- WebRTC core ---
+  let pc = null, dc = null, role = null;
+  const iceServers = [{urls:'stun:stun.l.google.com:19302'}];
 
-function resetAll(){
-  if(dc){ try{dc.close()}catch{} dc=null; }
-  if(pc){ try{pc.close()}catch{} pc=null; }
-  role='-'; setBadge('role','role: -'); updateStates();
-  $('#localSdp').value=''; $('#remoteSdp').value='';
-  addMsg('🔄 リセットしました');
-}
+  const reset = () => {
+    try { if (dc) dc.close(); } catch {}
+    try { if (pc) pc.close(); } catch {}
+    pc = null; dc = null; role = null;
+    roleEl.textContent = '未選択';
+    input.disabled = true; sendBtn.disabled = true;
+    localSdpEl.value = ''; remoteSdpEl.value = '';
+    setStatus('Disconnected', false);
+  };
 
-function createPC(){
-  pc = new RTCPeerConnection(iceConfig);
-  pc.oniceconnectionstatechange = updateStates;
-  pc.onicegatheringstatechange = ()=>{}; // no-op
-  pc.ondatachannel = e => { dc = e.channel; bindDC(); };
-}
+  const newPc = () => {
+    const _pc = new RTCPeerConnection({ iceServers, iceCandidatePoolSize: 0 });
+    _pc.onconnectionstatechange = () => {
+      const s = _pc.connectionState;
+      if (s === 'connected'){ setStatus('Connected', true); input.disabled=false; sendBtn.disabled=false; }
+      else if (s === 'disconnected' || s === 'failed' || s === 'closed'){ setStatus('Disconnected', false); input.disabled=true; sendBtn.disabled=true; }
+    };
+    _pc.oniceconnectionstatechange = () => {
+      // For visibility, but not strictly necessary.
+      // console.log('ICE:', _pc.iceConnectionState);
+    };
+    _pc.onicecandidateerror = (e) => {
+      console.warn('ICE candidate error', e);
+    };
+    return _pc;
+  };
 
-function waitIceComplete(){
-  return new Promise(res=>{
-    if(pc.iceGatheringState==='complete') return res();
-    function check(){
-      if(pc.iceGatheringState==='complete'){ pc.removeEventListener('icegatheringstatechange', check); res(); }
-    }
+  const waitIceDone = pc => new Promise(res => {
+    if (pc.iceGatheringState === 'complete') return res();
+    const check = () => { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', check); res(); } };
     pc.addEventListener('icegatheringstatechange', check);
   });
-}
 
-/* --- ① オファー生成（先に操作する側） --- */
-$('#btnMakeOffer').addEventListener('click', async ()=>{
-  resetAll(); createPC(); role='offerer'; setBadge('role','role: offerer');
-  dc = pc.createDataChannel('chat',{ordered:true}); bindDC();
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  // ICE が出揃うまで待ってから SDP を出力（非トリクル）
-  await waitIceComplete();
-  $('#localSdp').value = b64encode(pc.localDescription);
-  addMsg('🛠️ オファーを生成しました。上の「あなたのSDP」を相手へ送ってください。');
-});
+  const encodeSDP = (desc) => {
+    const json = JSON.stringify({ sdp: desc.sdp, type: desc.type });
+    return btoa(unescape(encodeURIComponent(json))); // Base64
+  };
+  const decodeSDP = (txt) => {
+    let raw = txt.trim();
+    if (!raw) throw new Error('空のSDPです');
+    if (raw.startsWith('{')) return JSON.parse(raw);
+    try {
+      const json = decodeURIComponent(escape(atob(raw)));
+      return JSON.parse(json);
+    } catch {
+      // Try as plain SDP
+      return { type: raw.includes('a=group:BUNDLE') ? 'offer' : 'answer', sdp: raw };
+    }
+  };
 
-/* --- ② アンサー生成（後から操作する側） --- */
-$('#btnMakeAnswer').addEventListener('click', async ()=>{
-  if(pc){ try{pc.close()}catch{} }
-  createPC(); role='answerer'; setBadge('role','role: answerer');
-  const remoteText = $('#remoteSdp').value.trim();
-  if(!remoteText){ addMsg('⚠️ 相手のSDPを貼ってください'); return; }
-  try{
-    const remote = b64decode(remoteText);
-    await pc.setRemoteDescription(remote);
+  async function createOfferFlow(){
+    reset();
+    role = 'host'; roleEl.textContent='ホスト';
+    pc = newPc();
+    dc = pc.createDataChannel('chat', { ordered: true });
+    wireDataChannel(dc);
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitIceDone(pc);
+    localSdpEl.value = encodeSDP(pc.localDescription);
+    setStatus('Waiting for Answer…', false);
+  }
+
+  async function createAnswerFlow(){
+    if (!pc) pc = newPc();
+    role = 'guest'; roleEl.textContent='ゲスト';
+    pc.ondatachannel = (ev) => {
+      dc = ev.channel;
+      wireDataChannel(dc);
+    };
+    // remote must be set first
+    const remote = remoteSdpEl.value.trim();
+    if (!remote) { alert('先に「相手のSDP」を貼ってください（ホストが作成したOffer）'); return; }
+    const r = decodeSDP(remote);
+    await pc.setRemoteDescription(new RTCSessionDescription(r));
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    await waitIceComplete();
-    $('#localSdp').value = b64encode(pc.localDescription);
-    addMsg('🧩 アンサーを生成しました。この「あなたのSDP」を相手に返してください。');
-  }catch(e){ console.error(e); addMsg('❌ SDP の読み込みに失敗しました'); }
-});
+    await waitIceDone(pc);
+    localSdpEl.value = encodeSDP(pc.localDescription);
+    setStatus('Answer ready. これを相手へ渡してください', false);
+  }
 
-/* --- ③ オファー側：アンサー適用 --- */
-$('#btnApplyAnswer').addEventListener('click', async ()=>{
-  if(!pc){ addMsg('⚠️ まず「① オファーを生成」を実行してください'); return; }
-  const remoteText = $('#remoteSdp').value.trim();
-  if(!remoteText){ addMsg('⚠️ 相手のSDP（アンサー）を貼ってください'); return; }
-  try{
-    const remote = b64decode(remoteText);
-    await pc.setRemoteDescription(remote);
-    addMsg('🔗 アンサーを適用しました。接続を確立中…');
-  }catch(e){ console.error(e); addMsg('❌ アンサーの適用に失敗しました'); }
-});
+  async function applyRemote(){
+    if (!pc) {
+      // If user is host path: they created offer already, so pc exists.
+      pc = newPc();
+    }
+    const raw = remoteSdpEl.value.trim();
+    if (!raw){ alert('相手SDPを貼ってください'); return; }
+    const r = decodeSDP(raw);
+    await pc.setRemoteDescription(new RTCSessionDescription(r));
+    setStatus('Remote SDP applied', false);
+  }
 
-/* --- チャット送受信 --- */
-function sendText(){
-  const t = $('#text'); const v = t.value;
-  if(!v.trim()) return;
-  if(!dc || dc.readyState!=='open'){ addMsg('⚠️ まだ接続されていません'); return; }
-  dc.send(v); addMsg(v, true); t.value='';
-}
-$('#send').addEventListener('click', sendText);
-$('#text').addEventListener('keydown', e=>{
-  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendText(); }
-});
-$('#btnReset').addEventListener('click', resetAll);
+  function wireDataChannel(ch){
+    ch.onopen = () => {
+      setStatus('Connected', true);
+      input.disabled = false; sendBtn.disabled = false;
+      addMsg('接続しました。チャットを開始できます。', false, 'System');
+      // Send hello with name
+      const hello = { t:'hello', name: storedName() || 'Peer' };
+      ch.send(JSON.stringify(hello));
+    };
+    ch.onmessage = (ev) => {
+      try{
+        const data = JSON.parse(ev.data);
+        if (data.t === 'hello') {
+          // store peer name for display
+          window._peerName = data.name || 'Peer';
+          return;
+        }
+      }catch{}
+      addMsg(ev.data, false, window._peerName || 'Peer');
+    };
+    ch.onclose = () => setStatus('Disconnected', false);
+    ch.onerror = () => setStatus('Error', false);
+  }
+
+  function send(){
+    const txt = input.value;
+    if (!txt || !dc || dc.readyState!=='open') return;
+    dc.send(txt);
+    addMsg(txt, true);
+    input.value = '';
+  }
+
+  // --- events ---
+  $('#btnOffer').addEventListener('click', createOfferFlow);
+  $('#btnAnswer').addEventListener('click', createAnswerFlow);
+  $('#applyRemote').addEventListener('click', applyRemote);
+  $('#clearRemote').addEventListener('click', () => remoteSdpEl.value='');
+  $('#btnReset').addEventListener('click', reset);
+  $('#send').addEventListener('click', send);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+  });
+  $('#copyLocal').addEventListener('click', async () => {
+    if (!localSdpEl.value) return;
+    await navigator.clipboard.writeText(localSdpEl.value);
+    const old = event.target.textContent; event.target.textContent='✓ コピーしました';
+    setTimeout(()=> event.target.textContent=old, 1200);
+  });
+  $('#saveLog').addEventListener('click', () => {
+    const text = [...messages.querySelectorAll('.row')].map(r=>{
+      const who = r.classList.contains('me') ? (storedName()||'Me') : (window._peerName||'Peer');
+      const msg = r.querySelector('.bubble').childNodes[1].textContent;
+      const tm  = r.querySelector('.time').textContent;
+      return `[${tm}] ${who}: ${msg}`;
+    }).join('\n');
+    const blob = new Blob([text], {type:'text/plain'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'p2p-chat-log.txt'; a.click(); URL.revokeObjectURL(a.href);
+  });
+  $('#clearChat').addEventListener('click', () => { messages.innerHTML=''; });
+  $('#saveName').addEventListener('click', () => {
+    localStorage.setItem('p2pname', nickname.value.trim());
+    addMsg(`あなたの表示名を「${storedName()||'Me'}」として保存しました`, false, 'System');
+  });
+  $('#toggleTheme').addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+    setTheme(cur==='dark' ? 'light' : 'dark');
+  });
+
+  // greet
+  addMsg('まずはホスト/ゲストを選んで接続しましょう。', false, 'Guide');
+})();
 </script>
 </body>
 </html>
