@@ -267,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       qrAnswerReader = new Html5Qrcode('answerReader');
       const cameras = await Html5Qrcode.getCameras();
-      const camId = cameras?.[0]?.id;
+      const camId = cameras?.[1]?.id;
       await qrAnswerReader.start(
         camId || { facingMode: "environment" },
         { fps: 10, qrbox: 250 },
