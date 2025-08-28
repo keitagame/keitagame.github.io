@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WebRTC + QR P2P Chat</title>
+<style>
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 16px; color: #222; background: #fafafa; }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 960px) { .grid { grid-template-columns: 1fr 1fr; } }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  button { appearance: none; background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
+  button.secondary { background: #111827; }
+  button.ghost { background: #e5e7eb; color: #111; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  textarea, input { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; }
+  .muted { color: #6b7280; font-size: 12px; }
+  .status { font-size: 13px; padding: 8px 10px; background: #f1f5f9; border-radius: 8px; margin-top: 8px; white-space: pre-wrap; }
+  .qr-box { display: grid; place-items: center; width: 256px; height: 256px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 12px; margin: 8px 0; }
+  #chat { height: 220px; overflow-y: auto; background: #0b1020; color: #c7d2fe; border-radius: 10px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .me { color: #34d399; }
+  .peer { color: #93c5fd; }
+  .sys { color: #fbbf24; }
+  .small { font-size: 12px; }
+  .danger { color: #b91c1c; }
+  .success { color: #065f46; }
+  .section-title { font-weight: 700; margin: 8px 0; }
+</style>
+<!-- QR生成 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+<!-- QRスキャン（カメラ） -->
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript" defer></script>
+</head>
+<body>
+  <h1>WebRTC + QR P2P Chat</h1>
+  <p class="muted">HTTPSで開いてください。同じページを2台で開き、一方がOffer、もう一方がAnswerを作成します。</p>
+
+  <div class="grid">
+    <!-- 左: 発信者（Offerを作る） -->
+    <div class="card">
+      <div class="section-title">発信者（Offerの作成とAnswerの適用）</div>
+      <div class="row">
+        <button id="btnCreateOffer">Offerを作成</button>
+        <button class="ghost" id="btnCopyOffer" disabled>Offerテキストをコピー</button>
+      </div>
+      <div class="qr-box" id="offerQR"></div>
+      <textarea id="offerText" rows="6" placeholder="生成されたOfferがここに表示されます" readonly></textarea>
+
+      <div class="row" style="margin-top:8px;">
+        <button class="secondary" id="btnScanAnswer" disabled>Answerをスキャン</button>
+        <button class="ghost" id="btnStopScanAnswer" disabled>スキャン停止</button>
+      </div>
+      <div id="answerScanArea" style="display:none;">
+        <div id="answerReader" style="width: 280px;"></div>
+      </div>
+      <textarea id="answerText" rows="6" placeholder="相手から受け取ったAnswerを貼り付けてもOK"></textarea>
+      <div class="row">
+        <button id="btnApplyAnswer" disabled>Answerを適用</button>
+      </div>
+
+      <div class="status" id="statusA">準備中...</div>
+    </div>
+
+    <!-- 右: 応答者（Offerを受け取りAnswerを作る） -->
+    <div class="card">
+      <div class="section-title">応答者（Offerの受領とAnswerの作成）</div>
+      <div class="row">
+        <button class="secondary" id="btnScanOffer">Offerをスキャン</button>
+        <button class="ghost" id="btnStopScanOffer" disabled>スキャン停止</button>
+      </div>
+      <div id="offerScanArea" style="display:none;">
+        <div id="offerReader" style="width: 280px;"></div>
+      </div>
+      <textarea id="remoteOfferText" rows="6" placeholder="Offerテキストを貼り付けでもOK"></textarea>
+      <div class="row">
+        <button id="btnCreateAnswer" disabled>Answerを作成</button>
+        <button class="ghost" id="btnCopyAnswer" disabled>Answerテキストをコピー</button>
+      </div>
+      <div class="qr-box" id="answerQR"></div>
+      <textarea id="localAnswerText" rows="6" placeholder="生成されたAnswerがここに表示されます" readonly></textarea>
+
+      <div class="status" id="statusB">Offerを受け取ってから開始します。</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="section-title">チャット</div>
+    <div id="chat"></div>
+    <div class="row" style="margin-top:8px;">
+      <input id="msg" placeholder="メッセージを入力..." />
+      <button id="send" disabled>送信</button>
+    </div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // ---- UI Elements ----
+  const btnCreateOffer = document.getElementById('btnCreateOffer');
+  const btnCopyOffer = document.getElementById('btnCopyOffer');
+  const offerQRBox = document.getElementById('offerQR');
+  const offerText = document.getElementById('offerText');
+  const btnScanAnswer = document.getElementById('btnScanAnswer');
+  const btnStopScanAnswer = document.getElementById('btnStopScanAnswer');
+  const answerScanArea = document.getElementById('answerScanArea');
+  const answerReaderDiv = document.getElementById('answerReader');
+  const answerText = document.getElementById('answerText');
+  const btnApplyAnswer = document.getElementById('btnApplyAnswer');
+  const statusA = document.getElementById('statusA');
+
+  const btnScanOffer = document.getElementById('btnScanOffer');
+  const btnStopScanOffer = document.getElementById('btnStopScanOffer');
+  const offerScanArea = document.getElementById('offerScanArea');
+  const offerReaderDiv = document.getElementById('offerReader');
+  const remoteOfferText = document.getElementById('remoteOfferText');
+  const btnCreateAnswer = document.getElementById('btnCreateAnswer');
+  const btnCopyAnswer = document.getElementById('btnCopyAnswer');
+  const answerQRBox = document.getElementById('answerQR');
+  const localAnswerText = document.getElementById('localAnswerText');
+  const statusB = document.getElementById('statusB');
+
+  const chatBox = document.getElementById('chat');
+  const msgInput = document.getElementById('msg');
+  const sendBtn = document.getElementById('send');
+
+  // ---- State ----
+  let pcA = null; // initiator
+  let pcB = null; // responder (local on this page when acting as responder)
+  let dataChannelA = null;
+  let dataChannelB = null;
+
+  let qrOfferReader = null;
+  let qrAnswerReader = null;
+
+  const iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+
+  // ---- Helpers ----
+  function logChat(cls, text) {
+    const div = document.createElement('div');
+    div.className = cls;
+    const ts = new Date().toLocaleTimeString();
+    div.textContent = `[${ts}] ${text}`;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+  function setStatus(el, text) {
+    el.textContent = text;
+  }
+  function enable(el, yes = true) { el.disabled = !yes; }
+  function clearQR(el) { el.innerHTML = ''; }
+  function makeQR(el, text) {
+    clearQR(el);
+    new QRCode(el, {
+      text,
+      width: 256,
+      height: 256,
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+
+  async function waitIceGathering(pc) {
+    if (pc.iceGatheringState === 'complete') return;
+    await new Promise(resolve => {
+      function check() {
+        if (pc.iceGatheringState === 'complete') {
+          pc.removeEventListener('icegatheringstatechange', check);
+          resolve();
+        }
+      }
+      pc.addEventListener('icegatheringstatechange', check);
+    });
+  }
+
+  function setupConnectionStateLogging(pc, where) {
+    pc.addEventListener('connectionstatechange', () => {
+      const s = pc.connectionState;
+      (where === 'A' ? setStatus.bind(null, statusA) : setStatus.bind(null, statusB))(`connectionState: ${s}`);
+    });
+    pc.addEventListener('iceconnectionstatechange', () => {
+      const s = pc.iceConnectionState;
+      const setter = (where === 'A') ? statusA : statusB;
+      setter.textContent += `\niceConnectionState: ${s}`;
+    });
+  }
+
+  function setupDataChannel(dc, who) {
+    dc.onopen = () => {
+      sendBtn.disabled = false;
+      logChat('sys', who + ' チャネルOPEN');
+    };
+    dc.onclose = () => {
+      sendBtn.disabled = true;
+      logChat('sys', who + ' チャネルCLOSE');
+    };
+    dc.onmessage = (ev) => {
+      logChat('peer', '相手: ' + ev.data);
+    };
+  }
+
+  sendBtn.addEventListener('click', () => {
+    const text = msgInput.value.trim();
+    if (!text) return;
+    try {
+      if (dataChannelA && dataChannelA.readyState === 'open') {
+        dataChannelA.send(text);
+      } else if (dataChannelB && dataChannelB.readyState === 'open') {
+        dataChannelB.send(text);
+      } else {
+        logChat('sys', 'データチャネルが未接続です');
+        return;
+      }
+      logChat('me', '自分: ' + text);
+      msgInput.value = '';
+      msgInput.focus();
+    } catch (e) {
+      logChat('sys', '送信エラー: ' + e.message);
+    }
+  });
+
+  // ---- Initiator (A): Create Offer ----
+  btnCreateOffer.addEventListener('click', async () => {
+    try {
+      pcA = new RTCPeerConnection({ iceServers });
+      setupConnectionStateLogging(pcA, 'A');
+
+      dataChannelA = pcA.createDataChannel('chat');
+      setupDataChannel(dataChannelA, 'A');
+
+      const offer = await pcA.createOffer();
+      await pcA.setLocalDescription(offer);
+      setStatus(statusA, 'ICE候補収集中...');
+      await waitIceGathering(pcA);
+
+      const fullOffer = JSON.stringify(pcA.localDescription);
+      offerText.value = fullOffer;
+      makeQR(offerQRBox, fullOffer);
+
+      enable(btnCopyOffer, true);
+      enable(btnScanAnswer, true);
+      enable(btnApplyAnswer, true);
+      setStatus(statusA, 'Offer生成完了。相手にQRをスキャンしてもらってください。');
+    } catch (e) {
+      setStatus(statusA, 'Offer作成エラー: ' + e.message);
+    }
+  });
+
+  btnCopyOffer.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(offerText.value);
+      setStatus(statusA, 'Offerをクリップボードにコピーしました。');
+    } catch (e) {
+      setStatus(statusA, 'コピー失敗: ' + e.message);
+    }
+  });
+
+  // ---- Initiator (A): Scan Answer ----
+  btnScanAnswer.addEventListener('click', async () => {
+    if (!window.Html5Qrcode) {
+      setStatus(statusA, 'スキャナの読み込み待機または利用不可。テキスト貼り付けで進めてください。');
+      return;
+    }
+    try {
+      answerScanArea.style.display = 'block';
+      enable(btnScanAnswer, false);
+      enable(btnStopScanAnswer, true);
+
+      qrAnswerReader = new Html5Qrcode('answerReader');
+      const cameras = await Html5Qrcode.getCameras();
+      const camId = cameras?.[0]?.id;
+      await qrAnswerReader.start(
+        camId || { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        (decodedText) => {
+          // Auto-fill and stop scanning
+          answerText.value = decodedText;
+          stopAnswerScan();
+          setStatus(statusA, 'Answerを読み取りました。Answerを適用してください。');
+        },
+        (errMsg) => { /* ignore scan errors */ }
+      );
+    } catch (e) {
+      setStatus(statusA, 'スキャン開始エラー: ' + e.message);
+    }
+  });
+
+  function stopAnswerScan() {
+    if (qrAnswerReader) {
+      qrAnswerReader.stop().catch(()=>{}).finally(() => {
+        qrAnswerReader.clear();
+        qrAnswerReader = null;
+        answerScanArea.style.display = 'none';
+        enable(btnScanAnswer, true);
+        enable(btnStopScanAnswer, false);
+      });
+    } else {
+      answerScanArea.style.display = 'none';
+      enable(btnScanAnswer, true);
+      enable(btnStopScanAnswer, false);
+    }
+  }
+  btnStopScanAnswer.addEventListener('click', stopAnswerScan);
+
+  btnApplyAnswer.addEventListener('click', async () => {
+    try {
+      if (!pcA) {
+        setStatus(statusA, '先にOfferを作成してください。');
+        return;
+      }
+      const ans = JSON.parse(answerText.value);
+      await pcA.setRemoteDescription(ans);
+      setStatus(statusA, 'Answerを適用しました。接続確立を待機中...');
+    } catch (e) {
+      setStatus(statusA, 'Answer適用エラー: ' + e.message);
+    }
+  });
+
+  // ---- Responder (B): Scan Offer ----
+  btnScanOffer.addEventListener('click', async () => {
+    if (!window.Html5Qrcode) {
+      setStatus(statusB, 'スキャナの読み込み待機または利用不可。テキスト貼り付けで進めてください。');
+      return;
+    }
+    try {
+      offerScanArea.style.display = 'block';
+      enable(btnScanOffer, false);
+      enable(btnStopScanOffer, true);
+
+      qrOfferReader = new Html5Qrcode('offerReader');
+      const cameras = await Html5Qrcode.getCameras();
+      const camId = cameras?.[0]?.id;
+      await qrOfferReader.start(
+        camId || { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        (decodedText) => {
+          remoteOfferText.value = decodedText;
+          stopOfferScan();
+          enable(btnCreateAnswer, true);
+          setStatus(statusB, 'Offerを読み取りました。Answerを作成してください。');
+        },
+        (errMsg) => { /* ignore */ }
+      );
+    } catch (e) {
+      setStatus(statusB, 'スキャン開始エラー: ' + e.message);
+    }
+  });
+
+  function stopOfferScan() {
+    if (qrOfferReader) {
+      qrOfferReader.stop().catch(()=>{}).finally(() => {
+        qrOfferReader.clear();
+        qrOfferReader = null;
+        offerScanArea.style.display = 'none';
+        enable(btnScanOffer, true);
+        enable(btnStopScanOffer, false);
+      });
+    } else {
+      offerScanArea.style.display = 'none';
+      enable(btnScanOffer, true);
+      enable(btnStopScanOffer, false);
+    }
+  }
+  btnStopScanOffer.addEventListener('click', stopOfferScan);
+
+  // ---- Responder (B): Create Answer ----
+  btnCreateAnswer.addEventListener('click', async () => {
+    try {
+      if (!remoteOfferText.value.trim()) {
+        setStatus(statusB, 'Offerが空です。スキャンするかテキストを貼り付けてください。');
+        return;
+      }
+      pcB = new RTCPeerConnection({ iceServers });
+      setupConnectionStateLogging(pcB, 'B');
+
+      pcB.ondatachannel = (ev) => {
+        dataChannelB = ev.channel;
+        setupDataChannel(dataChannelB, 'B');
+      };
+
+      const remoteOffer = JSON.parse(remoteOfferText.value);
+      await pcB.setRemoteDescription(remoteOffer);
+
+      const answer = await pcB.createAnswer();
+      await pcB.setLocalDescription(answer);
+      setStatus(statusB, 'ICE候補収集中...');
+      await waitIceGathering(pcB);
+
+      const fullAnswer = JSON.stringify(pcB.localDescription);
+      localAnswerText.value = fullAnswer;
+      makeQR(answerQRBox, fullAnswer);
+      enable(btnCopyAnswer, true);
+      setStatus(statusB, 'Answer生成完了。発信者にQRを読ませてください。');
+    } catch (e) {
+      setStatus(statusB, 'Answer作成エラー: ' + e.message);
+    }
+  });
+
+  btnCopyAnswer.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(localAnswerText.value);
+      setStatus(statusB, 'Answerをクリップボードにコピーしました。');
+    } catch (e) {
+      setStatus(statusB, 'コピー失敗: ' + e.message);
+    }
+  });
+
+  // ---- Enable manual flows ----
+  remoteOfferText.addEventListener('input', () => {
+    enable(btnCreateAnswer, !!remoteOfferText.value.trim());
+  });
+
+  // ---- Nice UX: Enter to send ----
+  msgInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendBtn.click();
+  });
+
+});
+</script>
+</body>
+</html>
