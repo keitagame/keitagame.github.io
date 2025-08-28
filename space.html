@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Space P2P Chat — Single HTML</title>
+<style>
+  :root{
+    --glass: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.22);
+    --neon:#7df9ff; --neon2:#9c6bff;
+    --text:#e8f1ff; --muted:#a9b3c7;
+  }
+  html,body{height:100%;margin:0;background:#020617;color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial}
+  canvas#stars{position:fixed;inset:0;z-index:-2}
+  .halo{position:fixed;left:50%;top:45%;transform:translate(-50%,-50%);
+    width:62vmin;height:62vmin;border-radius:50%;
+    box-shadow:0 0 140px 40px rgba(125,249,255,.16), inset 0 0 260px 70px rgba(156,107,255,.12);
+    filter:blur(2px);z-index:-1}
+  .wrap{max-width:1000px;margin:6vh auto;padding:20px;display:grid;gap:18px;
+    grid-template-columns:360px 1fr}
+  @media (max-width:900px){.wrap{grid-template-columns:1fr}}
+  .panel{backdrop-filter: blur(12px) saturate(120%);
+    background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
+    border:1px solid var(--border);border-radius:16px;padding:16px;
+    box-shadow:0 10px 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.04)}
+  .panel h2{margin:4px 0 10px}
+  .hint{color:var(--muted);font-size:13px}
+  textarea,input[type=text]{width:100%;border-radius:12px;border:1px solid var(--border);
+    background:var(--glass);color:var(--text);outline:none}
+  textarea{min-height:120px;padding:10px;resize:vertical}
+  .row{display:flex;gap:8px;align-items:center;margin:8px 0}
+  button{padding:10px 12px;border-radius:12px;border:1px solid var(--border);
+    background:linear-gradient(180deg,#1b2333,#151b28);color:var(--text);cursor:pointer;
+    font-weight:600;transition:transform .06s, box-shadow .2s}
+  button:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(125,249,255,.15)}
+  button.primary{border-color:rgba(125,249,255,.4);box-shadow:inset 0 0 18px rgba(125,249,255,.14)}
+  .badge{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid var(--border);
+    background:var(--glass);font-size:12px}
+  .statusRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 16px currentColor}
+  .chat{height:62vh;min-height:360px;display:flex;flex-direction:column}
+  .log{flex:1;overflow:auto;padding:12px;border-radius:12px;border:1px dashed rgba(255,255,255,.18);
+    background:linear-gradient(180deg, rgba(0,10,24,.45), rgba(10,8,28,.45))}
+  .msg{display:flex;gap:10px;margin:8px 0;align-items:flex-end}
+  .msg.me{flex-direction:row-reverse}
+  .bubble{max-width:68%;padding:10px 12px;border-radius:12px;
+    background:rgba(125,249,255,.09);border:1px solid rgba(125,249,255,.25);
+    box-shadow:0 6px 20px rgba(125,249,255,.12);white-space:pre-wrap;word-wrap:break-word}
+  .msg.me .bubble{background:rgba(156,107,255,.10);border-color:rgba(156,107,255,.35);
+    box-shadow:0 6px 20px rgba(156,107,255,.16)}
+  .meta{font-size:11px;color:var(--muted);margin:0 6px}
+  .inputRow{display:flex;gap:8px;margin-top:10px}
+  .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:6px}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div class="halo"></div>
+
+<div class="wrap">
+  <section class="panel">
+    <h2>🛰️ 手動シグナリング（コピペ方式）</h2>
+    <div class="row statusRow">
+      <span class="badge" id="role">role: -</span>
+      <span class="badge" id="state">rtc: -</span>
+      <span title="WebRTC" class="dot" id="rtcDot" style="color:#888"></span>
+      <span title="DataChannel" class="dot" id="dcDot" style="color:#888"></span>
+    </div>
+    <p class="hint">
+      1) どちらかが「オファーを生成」→出力を相手へ。<br>
+      2) 受け取った側は「相手のSDP」に貼って「アンサーを生成」→返送。<br>
+      3) 最初の人は「相手のSDP」にアンサーを貼って「アンサーを適用」。<br>
+      （ICE 完了を待ってから出力するので、候補のコピペは不要です）
+    </p>
+
+    <div class="row">
+      <button class="primary" id="btnMakeOffer">① オファーを生成</button>
+      <button id="btnApplyAnswer">③ アンサーを適用</button>
+    </div>
+
+    <div class="row">
+      <button id="btnMakeAnswer">② アンサーを生成</button>
+      <button id="btnReset">リセット</button>
+    </div>
+
+    <label class="hint">相手のSDP（もらったテキストを貼る）</label>
+    <textarea id="remoteSdp" placeholder="ここに相手の SDP テキスト（このページで生成された Base64 文字列）を貼る"></textarea>
+
+    <label class="hint">あなたのSDP（相手に送る用・自動生成）</label>
+    <textarea id="localSdp" readonly placeholder="ここに自動生成されます。これを相手に渡してください。"></textarea>
+  </section>
+
+  <section class="panel chat">
+    <h2>🌌 Space Chat (P2P)</h2>
+    <div id="log" class="log" aria-live="polite"></div>
+    <div class="inputRow">
+      <textarea id="text" placeholder="メッセージを入力…（Enter送信 / Shift+Enter改行）"></textarea>
+      <button class="primary" id="send">送信 ⟶</button>
+    </div>
+    <div class="foot">Single-file WebRTC DataChannel Chat © You</div>
+  </section>
+</div>
+
+<script>
+/* ==== 星空背景 ==== */
+(function(){
+  const c = document.getElementById('stars'), ctx = c.getContext('2d');
+  let w,h,stars=[];
+  function resize(){ w=c.width=innerWidth; h=c.height=innerHeight;
+    const n = Math.min(420, Math.floor((w*h)/6000));
+    stars = Array.from({length:n}, ()=>({x:Math.random()*w,y:Math.random()*h,z:Math.random()+.2,s:Math.random()*1.6+.2}));
+  }
+  function tick(){ ctx.clearRect(0,0,w,h); ctx.fillStyle='#fff';
+    for(const s of stars){ s.x+=s.z*.6; s.y+=s.z*.15; if(s.x>w||s.y>h){ s.x=Math.random()*w*0.2; s.y=-10 }
+      ctx.globalAlpha=s.z*.9; ctx.fillRect(s.x,s.y,s.s,s.s);
+    } requestAnimationFrame(tick);
+  }
+  addEventListener('resize', resize); resize(); tick();
+})();
+
+/* ==== ユーティリティ ==== */
+const $ = q => document.querySelector(q);
+const logEl = $('#log');
+function addMsg(text, me=false){
+  const wrap = document.createElement('div'); wrap.className='msg'+(me?' me':'');
+  const bubble = document.createElement('div'); bubble.className='bubble'; bubble.textContent = text;
+  const meta = document.createElement('div'); meta.className='meta'; meta.textContent = new Date().toLocaleTimeString();
+  wrap.appendChild(bubble); wrap.appendChild(meta); logEl.appendChild(wrap);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function setBadge(id, text){ document.getElementById(id).textContent = text; }
+function b64encode(obj){ return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); }
+function b64decode(str){ return JSON.parse(decodeURIComponent(escape(atob(str)))); }
+
+/* ==== WebRTC（手動シグナリング） ==== */
+let pc=null, dc=null, role='-';
+const iceConfig = { iceServers:[ {urls:'stun:stun.l.google.com:19302'}, {urls:'stun:global.stun.twilio.com:3478?transport=udp'} ] };
+
+function updateStates(){
+  if(!pc) { $('#rtcDot').style.color='#888'; setBadge('state','rtc: -'); return; }
+  const st = pc.iceConnectionState;
+  $('#rtcDot').style.color = (st==='connected'||st==='completed')? '#6bffb0' : (st==='failed'? '#ff6b9c' : '#ffc66b');
+  setBadge('state','rtc: '+st);
+}
+function bindDC(){
+  dc.onopen = ()=>{ $('#dcDot').style.color='#6bffb0'; addMsg('✅ DataChannel open'); };
+  dc.onclose= ()=>{ $('#dcDot').style.color='#888'; addMsg('❌ DataChannel closed'); };
+  dc.onmessage = e => addMsg(e.data, false);
+}
+
+function resetAll(){
+  if(dc){ try{dc.close()}catch{} dc=null; }
+  if(pc){ try{pc.close()}catch{} pc=null; }
+  role='-'; setBadge('role','role: -'); updateStates();
+  $('#localSdp').value=''; $('#remoteSdp').value='';
+  addMsg('🔄 リセットしました');
+}
+
+function createPC(){
+  pc = new RTCPeerConnection(iceConfig);
+  pc.oniceconnectionstatechange = updateStates;
+  pc.onicegatheringstatechange = ()=>{}; // no-op
+  pc.ondatachannel = e => { dc = e.channel; bindDC(); };
+}
+
+function waitIceComplete(){
+  return new Promise(res=>{
+    if(pc.iceGatheringState==='complete') return res();
+    function check(){
+      if(pc.iceGatheringState==='complete'){ pc.removeEventListener('icegatheringstatechange', check); res(); }
+    }
+    pc.addEventListener('icegatheringstatechange', check);
+  });
+}
+
+/* --- ① オファー生成（先に操作する側） --- */
+$('#btnMakeOffer').addEventListener('click', async ()=>{
+  resetAll(); createPC(); role='offerer'; setBadge('role','role: offerer');
+  dc = pc.createDataChannel('chat',{ordered:true}); bindDC();
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  // ICE が出揃うまで待ってから SDP を出力（非トリクル）
+  await waitIceComplete();
+  $('#localSdp').value = b64encode(pc.localDescription);
+  addMsg('🛠️ オファーを生成しました。上の「あなたのSDP」を相手へ送ってください。');
+});
+
+/* --- ② アンサー生成（後から操作する側） --- */
+$('#btnMakeAnswer').addEventListener('click', async ()=>{
+  if(pc){ try{pc.close()}catch{} }
+  createPC(); role='answerer'; setBadge('role','role: answerer');
+  const remoteText = $('#remoteSdp').value.trim();
+  if(!remoteText){ addMsg('⚠️ 相手のSDPを貼ってください'); return; }
+  try{
+    const remote = b64decode(remoteText);
+    await pc.setRemoteDescription(remote);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await waitIceComplete();
+    $('#localSdp').value = b64encode(pc.localDescription);
+    addMsg('🧩 アンサーを生成しました。この「あなたのSDP」を相手に返してください。');
+  }catch(e){ console.error(e); addMsg('❌ SDP の読み込みに失敗しました'); }
+});
+
+/* --- ③ オファー側：アンサー適用 --- */
+$('#btnApplyAnswer').addEventListener('click', async ()=>{
+  if(!pc){ addMsg('⚠️ まず「① オファーを生成」を実行してください'); return; }
+  const remoteText = $('#remoteSdp').value.trim();
+  if(!remoteText){ addMsg('⚠️ 相手のSDP（アンサー）を貼ってください'); return; }
+  try{
+    const remote = b64decode(remoteText);
+    await pc.setRemoteDescription(remote);
+    addMsg('🔗 アンサーを適用しました。接続を確立中…');
+  }catch(e){ console.error(e); addMsg('❌ アンサーの適用に失敗しました'); }
+});
+
+/* --- チャット送受信 --- */
+function sendText(){
+  const t = $('#text'); const v = t.value;
+  if(!v.trim()) return;
+  if(!dc || dc.readyState!=='open'){ addMsg('⚠️ まだ接続されていません'); return; }
+  dc.send(v); addMsg(v, true); t.value='';
+}
+$('#send').addEventListener('click', sendText);
+$('#text').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendText(); }
+});
+$('#btnReset').addEventListener('click', resetAll);
+</script>
+</body>
+</html>
