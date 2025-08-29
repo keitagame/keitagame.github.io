@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Achex 無ログインチャット（HTMLのみ）</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b0b0c; --fg: #e9e9ec; --muted: #9aa0a6; --accent: #4f9cf9;
+      --card: #15161a; --border: #2a2d33;
+    }
+    body { margin: 0; font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--fg); }
+    header { padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--card); position: sticky; top: 0; z-index: 1; }
+    header .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    header input, header button, header select {
+      background: #101114; color: var(--fg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+    }
+    header button { background: var(--accent); color: #fff; border: none; cursor: pointer; }
+    main { height: calc(100vh - 160px); display: grid; grid-template-rows: 1fr auto; }
+    #log { padding: 12px 16px; overflow: auto; }
+    .sys { color: var(--muted); font-size: 12px; margin: 4px 0; }
+    .msg { margin: 8px 0; }
+    .nick { color: var(--accent); font-weight: 600; margin-right: 6px; }
+    .time { color: var(--muted); font-size: 11px; margin-left: 6px; }
+    .own { filter: saturate(1.1); }
+    footer { padding: 12px 16px; border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto; gap: 8px; background: var(--card); }
+    #text { resize: none; height: 56px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="row">
+      <span>サーバ:</span>
+      <select id="wsUrl">
+        <option value="wss://achex.ca/">wss://achex.ca/</option>
+        <option value="wss://ws.achex.ca/">wss://ws.achex.ca/</option>
+      </select>
+      <span>部屋:</span>
+      <input id="room" placeholder="room-name" />
+      <span>あなた:</span>
+      <input id="nick" placeholder="nickname" />
+      <button id="connect">接続/再接続</button>
+      <button id="copyLink">部屋リンクをコピー</button>
+      <span id="state" class="sys"></span>
+    </div>
+  </header>
+
+  <main>
+    <div id="log"></div>
+    <footer>
+      <textarea id="text" placeholder="メッセージを入力。Enter で送信、Shift+Enter で改行"></textarea>
+      <button id="send">送信</button>
+    </footer>
+  </main>
+
+  <script>
+    // --- Achex メッセージ仕様（必要ならキー名を調整） ---
+    // 多くの Achex 用クライアントは以下のような JSON を使います。
+    // 1) 接続直後に「auth」で名乗る
+    // 2) 「join」で部屋参加
+    // 3) 送信は「to」に部屋名、「data」に任意ペイロード
+    // 受信は { room, from, data } などで届く想定にしています。
+    const PROTO = {
+      authKey: 'auth',
+      joinKey: 'join',
+      toKey:   'to',
+      roomField: 'room',
+      fromField: 'from',
+      dataField: 'data',
+    };
+
+    // --- UI 要素 ---
+    const $ = (q) => document.querySelector(q);
+    const logEl = $('#log');
+    const wsUrlEl = $('#wsUrl');
+    const roomEl = $('#room');
+    const nickEl = $('#nick');
+    const stateEl = $('#state');
+    const textEl = $('#text');
+    const sendBtn = $('#send');
+    const connectBtn = $('#connect');
+    const copyLinkBtn = $('#copyLink');
+
+    // --- 初期値（URL ?room=foo&nick=bar / localStorage） ---
+    const params = new URLSearchParams(location.search);
+    const LS = (k, v) => (v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v));
+    roomEl.value = params.get('room') || LS('achex.room') || 'demo-room';
+    nickEl.value = params.get('nick') || LS('achex.nick') || `guest-${Math.random().toString(36).slice(2, 7)}`;
+
+    let ws = null;
+    let currentRoom = roomEl.value.trim();
+    let currentNick = nickEl.value.trim();
+    let reconnectTimer = null;
+    let backoff = 1000;
+    let connected = false;
+    let lastPing = 0;
+
+    function now() {
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, '0');
+      return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
+    function lineSys(text) {
+      const div = document.createElement('div');
+      div.className = 'sys';
+      div.textContent = `[${now()}] ${text}`;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function lineMsg({ nick, text, own }) {
+      const div = document.createElement('div');
+      div.className = 'msg' + (own ? ' own' : '');
+      div.innerHTML = `<span class="nick">${escapeHtml(nick)}</span>${escapeHtml(text)}<span class="time">${now()}</span>`;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function setState(s) {
+      stateEl.textContent = s;
+      document.title = `${s} - Achexチャット`;
+    }
+
+    function connect() {
+      cleanup();
+      currentRoom = roomEl.value.trim() || 'demo-room';
+      currentNick = nickEl.value.trim() || `guest-${Math.random().toString(36).slice(2, 7)}`;
+      LS('achex.room', currentRoom);
+      LS('achex.nick', currentNick);
+
+      const url = wsUrlEl.value;
+      lineSys(`接続中: ${url} / room: ${currentRoom} / nick: ${currentNick}`);
+      setState('接続中…');
+
+      try {
+        ws = new WebSocket(url);
+      } catch (e) {
+        lineSys(`WebSocket 初期化失敗: ${e}`);
+        scheduleReconnect();
+        return;
+      }
+
+      ws.onopen = () => {
+        connected = true;
+        backoff = 1000;
+        setState('接続済み');
+        lineSys('接続完了。認証・入室を送信します。');
+
+        // 1) 名乗る（ログイン不要の匿名識別）
+        ws.send(JSON.stringify({ [PROTO.authKey]: currentNick }));
+
+        // 2) 部屋に参加
+        ws.send(JSON.stringify({ [PROTO.joinKey]: currentRoom }));
+
+        // 3) 軽いキープアライブ（30秒毎）
+        lastPing = Date.now();
+        pingLoop();
+      };
+
+      ws.onmessage = (ev) => {
+        let msg;
+        try { msg = JSON.parse(ev.data); } catch { return; }
+
+        // 受信フォーマットの緩い取り扱い
+        const room = msg[PROTO.roomField] ?? msg.room;
+        const from = msg[PROTO.fromField] ?? msg.from ?? msg[PROTO.authKey];
+        const data = msg[PROTO.dataField] ?? msg.data ?? msg.text;
+
+        // チャット本文として扱うメッセージのみ表示
+        // 送信側で { to: room, data: { type:'chat', text, from, ts } } を採用
+        if (room === currentRoom && data && (data.type === 'chat') && typeof data.text === 'string') {
+          lineMsg({ nick: data.from || from || 'unknown', text: data.text, own: (data.from === currentNick) });
+        }
+      };
+
+      ws.onerror = () => {
+        setState('エラー発生');
+        lineSys('WebSocket エラー。');
+      };
+
+      ws.onclose = (e) => {
+        connected = false;
+        setState(`切断 (${e.code})`);
+        lineSys(`切断されました。再接続を試みます。`);
+        scheduleReconnect();
+      };
+    }
+
+    function pingLoop() {
+      if (!ws || ws.readyState !== 1) return;
+      const delta = Date.now() - lastPing;
+      if (delta >= 30000) {
+        lastPing = Date.now();
+        // Achex 側で無視されても問題ない軽い ping
+        ws.send(JSON.stringify({ ping: Date.now() }));
+      }
+      // 10秒ごとにヘルスチェック
+      setTimeout(pingLoop, 10000);
+    }
+
+    function scheduleReconnect() {
+      if (reconnectTimer) return;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        backoff = Math.min(backoff * 1.8, 15000);
+        lineSys(`再接続試行（backoff ${Math.round(backoff)}ms）`);
+        connect();
+      }, backoff);
+    }
+
+    function cleanup() {
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      if (ws) {
+        try { ws.close(); } catch {}
+        ws = null;
+      }
+    }
+
+    function sendCurrent() {
+      const text = textEl.value.replace(/\r?\n$/, '');
+      if (!text.trim()) return;
+      if (!ws || ws.readyState !== 1) {
+        lineSys('まだ接続されていません。');
+        return;
+      }
+      // Achex へ送る標準的ペイロード
+      const payload = {
+        [PROTO.toKey]: currentRoom,
+        [PROTO.dataField]: {
+          type: 'chat',
+          text,
+          from: currentNick,
+          ts: Date.now()
+        }
+      };
+      ws.send(JSON.stringify(payload));
+      // ローカルにも即時反映
+      lineMsg({ nick: currentNick, text, own: true });
+      textEl.value = '';
+    }
+
+    // --- UI イベント ---
+    sendBtn.addEventListener('click', sendCurrent);
+    textEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendCurrent();
+      }
+    });
+    connectBtn.addEventListener('click', () => {
+      cleanup();
+      connect();
+    });
+    copyLinkBtn.addEventListener('click', async () => {
+      const url = new URL(location.href);
+      const p = url.searchParams;
+      p.set('room', roomEl.value.trim() || 'demo-room');
+      p.set('nick', nickEl.value.trim() || 'guest');
+      try {
+        await navigator.clipboard.writeText(url.toString());
+        lineSys('部屋リンクをクリップボードにコピーしました。');
+      } catch {
+        lineSys('コピーに失敗。手動でアドレスバーからコピーしてください。');
+      }
+    });
+
+    // 自動接続（初回）
+    window.addEventListener('load', () => {
+      connect();
+    });
+
+    // ページ離脱でクリーンアップ
+    window.addEventListener('beforeunload', () => cleanup());
+  </script>
+</body>
+</html>
