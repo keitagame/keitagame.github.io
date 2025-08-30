@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>Danmaku Sample</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+  <style>
+    html, body { height: 100%; margin: 0; background: #05060a; color: #fff; }
+    #wrap { display: grid; place-items: center; height: 100%; }
+    canvas { box-shadow: 0 10px 40px #0008; border-radius: 10px; touch-action: none; }
+    .hud { position: fixed; top: 10px; right: 12px; font-family: ui-monospace, monospace; opacity: 0.85; }
+    .hud b { color: #8ff; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="game" width="480" height="720"></canvas>
+  </div>
+  <div class="hud">Move: WASD/Arrows or Drag • Slow: Shift</div>
+  <script type="module">
+    import {
+      Engine, Scene, Player, Enemy, Emitter, Patterns, TAU
+    } from './popup.js';
+
+    const canvas = document.getElementById('game');
+    const engine = new Engine(canvas, { width: 480, height: 720 });
+
+    const scene = new Scene(engine, { rngSeed: 0x1 });
+
+    // Player
+    const player = scene.setPlayer(new Player({ x: scene.width / 2, y: scene.height - 80, lives: 2 }));
+    player.onDeath = () => console.log('Game Over');
+
+    // Boss
+    const boss = scene.addEnemy(new Enemy({ x: scene.width / 2, y: 120, r: 18, hp: 180 }));
+    boss.vx = 40; boss.vy = 0;
+
+    // Boss horizontal ping-pong
+    scene.scheduler.every(0.02, () => {
+      if (boss.x < 80) boss.vx = Math.abs(boss.vx);
+      if (boss.x > scene.width - 80) boss.vx = -Math.abs(boss.vx);
+    });
+
+    // Phase 1: spiral + aimed mix
+    const em1 = scene.addEmitter(new Emitter({
+      x: boss.x, y: boss.y, rate: 0.08, team: 'enemy',
+      pattern: ({ t, target }) => [
+        ...Patterns.spiral({ angle: t * 2.2, delta: 0.35, count: 2, speed: 140, color: '#ff9', spin: 6 }),
+        ...Patterns.aimed({
+          target: { x: target.x - boss.x, y: target.y - boss.y },
+          spread: 0.06, count: 3, speed: 220, color: '#fbb'
+        }),
+      ]
+    }));
+
+    // Phase 2: rings + wave
+    const em2 = scene.addEmitter(new Emitter({
+      x: boss.x, y: boss.y, rate: 0.6, team: 'enemy',
+      pattern: ({ t }) => {
+        const base = t * 0.7;
+        return [
+          ...Patterns.ring({ base, bullets: 28, speed: 120, color: '#fb8' }),
+          ...Patterns.wave({ base: base + 1.2, amplitude: 1.2, freq: 4, speed: 160, color: '#bbf' })
+        ];
+      },
+      enabled: false
+    }));
+
+    // Random bursts
+    const em3 = scene.addEmitter(new Emitter({
+      x: boss.x, y: boss.y, rate: 1.4, team: 'enemy',
+      pattern: () => Patterns.randomSpread({ rng: scene.rng, center: -Math.PI/2, arc: Math.PI * 0.8, count: 24, speed: 200, color: '#df8' }),
+      enabled: false
+    }));
+
+    // Keep emitters bound to boss position
+    scene.scheduler.every(0.01, () => {
+      em1.x = em2.x = em3.x = boss.x;
+      em1.y = em2.y = em3.y = boss.y;
+    });
+
+    // Phase timeline
+    scene.scheduler.after(8, () => { em1.enabled = false; em2.enabled = true; });
+    scene.scheduler.after(16, () => { em2.enabled = true; em3.enabled = true; });
+    scene.scheduler.after(24, () => { em1.enabled = true; }); // all active
+
+    // Boss death clears patterns
+    boss.onDeath = (sc) => {
+      em1.enabled = em2.enabled = em3.enabled = false;
+      // small finale
+      const finale = new Emitter({
+        x: boss.x, y: boss.y, rate: 0.2, team: 'enemy',
+        pattern: ({ t }) => Patterns.ring({ base: t * 3, bullets: 36, speed: 160, color: '#8ff' })
+      });
+      sc.addEmitter(finale);
+      sc.scheduler.after(2, () => sc.removeEmitter(finale));
+    };
+
+    // Minimal hit effect: when enemy gets hit, flash color briefly
+    const origColor = boss.color;
+    const flash = () => { boss.color = '#fff'; setTimeout(() => boss.color = origColor, 60); };
+    const origDamage = boss.damage.bind(boss);
+    boss.damage = (d) => { origDamage(d); flash(); };
+
+    // Start
+    engine.start(scene);
+  </script>
+</body>
+</html>
