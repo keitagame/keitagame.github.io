@@ -1,546 +1,94 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>X風P2Pチャット（QR接続）</title>
-<!-- 外部ライブラリ（CDN） -->
-<!-- QR生成 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
-<!-- QR読み取り -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" defer></script>
-<!-- 文字列圧縮 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js" defer></script>
-<style>
-  :root {
-    --bg: #000000;
-    --panel: #16181c;
-    --text: #e7e9ea;
-    --muted: #8b98a5;
-    --accent: #1d9bf0;
-    --bubble-me: #0b84dd;
-    --bubble-you: #1f2732;
-    --border: #2f3336;
-    --danger: #f4212e;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif;
-  }
-  header {
-    position: sticky; top: 0; z-index: 5;
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 16px; border-bottom: 1px solid var(--border);
-    background: rgba(0,0,0,.85); backdrop-filter: blur(8px);
-  }
-  header .logo {
-    width: 28px; height: 28px; border-radius: 50%;
-    background: var(--text); display: grid; place-items: center; color: var(--bg); font-weight: 800;
-  }
-  header h1 { font-size: 18px; margin: 0; }
-  main { max-width: 780px; margin: 0 auto; display: grid; grid-template-columns: 1fr; }
-  .tabs {
-    display: grid; grid-template-columns: 1fr 1fr;
-    border-bottom: 1px solid var(--border); background: var(--panel);
-  }
-  .tab {
-    padding: 12px; text-align: center; cursor: pointer; color: var(--muted);
-    border-right: 1px solid var(--border); user-select: none;
-  }
-  .tab.active { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); }
-  .tab:last-child { border-right: none; }
-  .pane { display: none; padding: 12px; }
-  .pane.active { display: block; }
-  .card {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-    padding: 12px; margin: 12px 0;
-  }
-  .row { display: flex; gap: 8px; align-items: stretch; }
-  .row > * { flex: 1; }
-  .btn {
-    appearance: none; border: 1px solid var(--border); background: #0d1117;
-    color: var(--text); padding: 10px 12px; border-radius: 10px; cursor: pointer;
-  }
-  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
-  .btn.ghost { background: transparent; }
-  .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
-  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-  .hint { color: var(--muted); font-size: 13px; }
-  textarea, input[type="text"] {
-    width: 100%; padding: 10px 12px; border-radius: 10px; background: #0d1117; border: 1px solid var(--border); color: var(--text);
-    font-family: inherit; resize: vertical;
-  }
-  .qr {
-    display: grid; place-items: center; padding: 12px; background: #0d1117; border: 1px dashed var(--border); border-radius: 12px; min-height: 220px;
-  }
-  .qr canvas { width: 240px; height: 240px; }
-  .scan {
-    display: grid; gap: 8px; justify-items: center;
-  }
-  video { width: 100%; max-width: 420px; border-radius: 12px; border: 1px solid var(--border); background: #0d1117; }
-  canvas { display: none; }
-  /* Chat area */
-  .chat {
-    height: calc(100vh - 260px);
-    overflow: auto; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel);
-  }
-  .msg {
-    display: flex; gap: 8px; margin: 8px 0; align-items: flex-end;
-    max-width: 90%;
-  }
-  .msg.you { flex-direction: row; }
-  .msg.me { flex-direction: row-reverse; margin-left: auto; }
-  .avatar {
-    width: 36px; height: 36px; border-radius: 50%; background: #111; border: 1px solid var(--border); display: grid; place-items: center; color: var(--muted); font-weight: 700;
-  }
-  .bubble {
-    padding: 10px 12px; border-radius: 16px; border: 1px solid var(--border); line-height: 1.4;
-    background: var(--bubble-you);
-  }
-  .me .bubble { background: var(--bubble-me); border-color: #0a5ea2; }
-  .timestamp { color: var(--muted); font-size: 12px; margin: 2px 6px; }
-  .composer {
-    position: sticky; bottom: 0; padding: 12px; display: grid; grid-template-columns: 1fr auto; gap: 8px;
-    background: rgba(0,0,0,.85); border-top: 1px solid var(--border); backdrop-filter: blur(8px);
-  }
-  .composer textarea {
-    resize: none; height: 44px; border-radius: 22px; padding: 12px 16px;
-  }
-  .composer .btn { border-radius: 22px; padding: 10px 16px; font-weight: 700; }
-  .status {
-    display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; margin-top: 6px;
-  }
-  .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; background: #0d1117; border: 1px solid var(--border); }
-  .ok { color: #22c55e; }
-  .ng { color: var(--danger); }
-</style>
+  <meta charset="UTF-8">
+  <title>Three.js FBX Loader Sample</title>
+  <style>
+    body { margin: 0; background: #000; }
+    canvas { display: block; }
+  </style>
+  <!-- three.js 本体 -->
+  <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
+  <!-- OrbitControls -->
+  <script src="https://unpkg.com/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
+  <!-- FBXLoader と依存の inflator -->
+  <script src="https://unpkg.com/three@0.152.2/examples/js/libs/inflate.min.js"></script>
+  <script src="https://unpkg.com/three@0.152.2/examples/js/loaders/FBXLoader.js"></script>
 </head>
 <body>
-  <header>
-    <div class="logo">X</div>
-    <h1>Direct Message P2P</h1>
-  </header>
-  <main>
-    <div class="tabs">
-      <div class="tab active" data-pane="host">部屋を作る</div>
-      <div class="tab" data-pane="join">部屋に参加</div>
-    </div>
-
-    <section id="host" class="pane active">
-      <div class="card">
-        <div class="row" style="gap:8px; flex-wrap:wrap;">
-          <button id="btnMakeOffer" class="btn primary">オファーを作成</button>
-          <button id="btnScanAnswer" class="btn">アンサーをスキャン</button>
-          <button id="btnResetHost" class="btn ghost">リセット</button>
-        </div>
-        <p class="hint">手順: オファーを作成 → 相手にQRを読んでもらう → 相手のアンサーをスキャン。</p>
-        <div class="qr" id="offerQR"><span class="hint">オファーQRがここに表示されます</span></div>
-        <details class="card">
-          <summary>テキストコードを表示/コピー</summary>
-          <div class="row">
-            <textarea id="offerText" rows="3" readonly></textarea>
-            <button id="btnCopyOffer" class="btn">コピー</button>
-          </div>
-          <div class="row">
-            <input id="answerText" type="text" placeholder="ここにアンサーコードを貼り付け" />
-            <button id="btnUseAnswerText" class="btn">適用</button>
-          </div>
-        </details>
-        <div id="hostScan" class="scan" style="display:none;">
-          <video id="videoAnswer" playsinline></video>
-          <button id="btnStopScanAnswer" class="btn danger">スキャン停止</button>
-          <p class="hint">枠内にアンサーQRを映してください。</p>
-        </div>
-      </div>
-    </section>
-
-    <section id="join" class="pane">
-      <div class="card">
-        <div class="row" style="gap:8px; flex-wrap:wrap;">
-          <button id="btnScanOffer" class="btn primary">オファーをスキャン</button>
-          <button id="btnResetJoin" class="btn ghost">リセット</button>
-        </div>
-        <p class="hint">手順: オファーQRをスキャン → 生成されたアンサーQRを相手に見せる。</p>
-        <div class="qr" id="answerQR"><span class="hint">アンサーQRがここに表示されます</span></div>
-        <details class="card">
-          <summary>テキストコードを表示/コピー</summary>
-          <div class="row">
-            <textarea id="answerOutText" rows="3" readonly></textarea>
-            <button id="btnCopyAnswer" class="btn">コピー</button>
-          </div>
-          <div class="row">
-            <input id="offerTextIn" type="text" placeholder="オファーコードを貼り付け" />
-            <button id="btnUseOfferText" class="btn">適用</button>
-          </div>
-        </details>
-        <div id="joinScan" class="scan" style="display:none;">
-          <video id="videoOffer" playsinline></video>
-          <button id="btnStopScanOffer" class="btn danger">スキャン停止</button>
-          <p class="hint">枠内にオファーQRを映してください。</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="status">
-        <span class="pill" id="netStatus">STUN: 未初期化</span>
-        <span class="pill" id="pcStatus">Peer: 未接続</span>
-        <span class="pill" id="dcStatus">Channel: 未接続</span>
-      </div>
-      <div class="chat" id="chat"></div>
-      <div class="composer">
-        <textarea id="composer" placeholder="メッセージを入力…" disabled></textarea>
-        <button id="sendBtn" class="btn primary" disabled>送信</button>
-      </div>
-    </section>
-  </main>
-
-<canvas id="hiddenCanvas"></canvas>
-
 <script>
-(() => {
-  // --- Utilities ---
-  const $ = (sel) => document.querySelector(sel);
-  const byId = (id) => document.getElementById(id);
-  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  let camera, scene, renderer, controls, mixer;
+  const clock = new THREE.Clock();
 
-  // Compression helpers
-  const pack = (obj) => LZString.compressToEncodedURIComponent(JSON.stringify(obj));
-  const unpack = (str) => JSON.parse(LZString.decompressFromEncodedURIComponent(str));
+  init();
+  animate();
 
-  // QR generation
-  function renderQR(el, text) {
-    el.innerHTML = '';
-    new QRCode(el, {
-      text,
-      width: 240,
-      height: 240,
-      colorDark: "#ffffff",
-      colorLight: "#0d1117",
-      correctLevel: QRCode.CorrectLevel.M
-    });
-  }
+  function init() {
+    // シーン
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
 
-  // QR scanning loop
-  function startScan(videoEl, onResult) {
-    let stop = false;
-    let stream;
-    const canvas = byId('hiddenCanvas');
-    const ctx = canvas.getContext('2d');
+    // カメラ
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
+    camera.position.set(200, 300, 500);
 
-    async function init() {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-      videoEl.srcObject = stream;
-      await videoEl.play();
-      loop();
-    }
+    // ライト
+    const dirLight = new THREE.DirectionalLight(0xffffff);
+    dirLight.position.set(1, 1, 1).normalize();
+    scene.add(dirLight);
 
-    async function loop() {
-      if (stop) return;
-      const w = videoEl.videoWidth, h = videoEl.videoHeight;
-      if (w && h) {
-        canvas.width = w; canvas.height = h;
-        ctx.drawImage(videoEl, 0, 0, w, h);
-        const img = ctx.getImageData(0, 0, w, h);
-        const code = jsQR(img.data, w, h, { inversionAttempts: "dontInvert" });
-        if (code && code.data) {
-          onResult(code.data);
-          stopScan();
-          return;
+    const ambient = new THREE.AmbientLight(0x404040);
+    scene.add(ambient);
+
+    // レンダラー
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // コントロール
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+
+    // FBXモデル読み込み
+    const loader = new THREE.FBXLoader();
+    loader.load(
+      'AE86.fbx', // モデルパス
+      function (object) {
+        object.scale.set(0.1, 0.1, 0.1);
+        scene.add(object);
+
+        if (object.animations && object.animations.length > 0) {
+          mixer = new THREE.AnimationMixer(object);
+          const action = mixer.clipAction(object.animations[0]);
+          action.play();
         }
+      },
+      function (xhr) {
+        console.log(`読み込み進行: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`);
+      },
+      function (error) {
+        console.error('読み込みエラー:', error);
       }
-      requestAnimationFrame(loop);
-    }
+    );
 
-    function stopScan() {
-      stop = true;
-      if (stream) stream.getTracks().forEach(t => t.stop());
-    }
-
-    init().catch(err => {
-      alert("カメラを開始できませんでした: " + err.message);
-      stopScan();
-    });
-
-    return stopScan;
+    window.addEventListener('resize', onWindowResize);
   }
 
-  // UI helpers
-  function setText(el, text) { el.textContent = text; }
-  function status(el, text, ok) {
-    el.textContent = text;
-    el.classList.toggle('ok', !!ok);
-    el.classList.toggle('ng', !ok);
-  }
-  function nowTime() {
-    const d = new Date();
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
-  // --- WebRTC core ---
-  const netStatus = byId('netStatus');
-  const pcStatus = byId('pcStatus');
-  const dcStatus = byId('dcStatus');
-  const chatEl = byId('chat');
-  const composer = byId('composer');
-  const sendBtn = byId('sendBtn');
-
-  let pc = null;
-  let dc = null;
-  let role = null; // 'host' or 'join'
-  let stopScanOffer = null;
-  let stopScanAnswer = null;
-
-  const rtcConfig = {
-    iceServers: [
-      { urls: ["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"] }
-    ],
-    iceCandidatePoolSize: 0
-  };
-
-  function resetAll() {
-    // close rtc
-    if (dc) { try { dc.close(); } catch(e){} dc = null; }
-    if (pc) { try { pc.close(); } catch(e){} pc = null; }
-    // stop scans
-    if (stopScanOffer) { stopScanOffer(); stopScanOffer = null; }
-    if (stopScanAnswer) { stopScanAnswer(); stopScanAnswer = null; }
-    // ui
-    role = null;
-    byId('offerQR').innerHTML = '<span class="hint">オファーQRがここに表示されます</span>';
-    byId('answerQR').innerHTML = '<span class="hint">アンサーQRがここに表示されます</span>';
-    byId('offerText').value = '';
-    byId('answerText').value = '';
-    byId('offerTextIn').value = '';
-    byId('answerOutText').value = '';
-    chatEl.innerHTML = '';
-    composer.value = '';
-    composer.disabled = true;
-    sendBtn.disabled = true;
-    status(netStatus, 'STUN: 初期化済', true);
-    status(pcStatus, 'Peer: 未接続', false);
-    status(dcStatus, 'Channel: 未接続', false);
-    byId('hostScan').style.display = 'none';
-    byId('joinScan').style.display = 'none';
+  function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    if (mixer) mixer.update(delta);
+    controls.update();
+    renderer.render(scene, camera);
   }
-
-  function newPeerConnection() {
-    pc = new RTCPeerConnection(rtcConfig);
-
-    pc.onicegatheringstatechange = () => {
-      // optional: reflect state
-    };
-    pc.onconnectionstatechange = () => {
-      const s = pc.connectionState;
-      status(pcStatus, `Peer: ${s}`, s === 'connected');
-    };
-    pc.oniceconnectionstatechange = () => {
-      // could add more diagnostics
-    };
-    pc.ondatachannel = (ev) => {
-      if (role === 'join') attachDataChannel(ev.channel);
-    };
-
-    status(netStatus, 'STUN: 準備OK', true);
-  }
-
-  function attachDataChannel(channel) {
-    dc = channel;
-    dc.onopen = () => {
-      status(dcStatus, 'Channel: 接続済み', true);
-      composer.disabled = false;
-      sendBtn.disabled = false;
-      addSystem('接続しました。良い会話を。');
-    };
-    dc.onclose = () => {
-      status(dcStatus, 'Channel: 切断', false);
-      composer.disabled = true;
-      sendBtn.disabled = true;
-      addSystem('切断されました。');
-    };
-    dc.onmessage = (ev) => {
-      addMsg('you', ev.data);
-    };
-  }
-
-  async function waitIceComplete(pc) {
-    if (pc.iceGatheringState === 'complete') return;
-    await new Promise((resolve) => {
-      const check = () => {
-        if (pc.iceGatheringState === 'complete') {
-          pc.removeEventListener('icegatheringstatechange', check);
-          resolve();
-        }
-      };
-      pc.addEventListener('icegatheringstatechange', check);
-    });
-  }
-
-  // Messages UI
-  function addMsg(side, text) {
-    const item = document.createElement('div');
-    item.className = `msg ${side}`;
-    const avatar = document.createElement('div');
-    avatar.className = 'avatar';
-    avatar.textContent = side === 'me' ? 'Me' : 'You';
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble';
-    bubble.textContent = text;
-    const time = document.createElement('div');
-    time.className = 'timestamp';
-    time.textContent = nowTime();
-    item.appendChild(avatar);
-    const col = document.createElement('div');
-    col.appendChild(bubble);
-    col.appendChild(time);
-    if (side === 'me') {
-      item.appendChild(col);
-    } else {
-      item.appendChild(col);
-    }
-    chatEl.appendChild(item);
-    chatEl.scrollTop = chatEl.scrollHeight;
-  }
-  function addSystem(text) {
-    const item = document.createElement('div');
-    item.className = 'timestamp';
-    item.style.textAlign = 'center';
-    item.textContent = `— ${text} —`;
-    chatEl.appendChild(item);
-  }
-
-  // --- Host flow ---
-  async function makeOffer() {
-    resetAll();
-    role = 'host';
-    newPeerConnection();
-    const channel = pc.createDataChannel('chat', { ordered: true });
-    attachDataChannel(channel);
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await waitIceComplete(pc);
-
-    const data = pack({ t: 'o', s: pc.localDescription.sdp });
-    byId('offerText').value = data;
-    renderQR(byId('offerQR'), data);
-  }
-
-  async function applyAnswerFromCode(code) {
-    try {
-      const obj = unpack(code);
-      if (!obj || obj.t !== 'a' || !obj.s) throw new Error('形式が不正です');
-      await pc.setRemoteDescription({ type: 'answer', sdp: obj.s });
-      addSystem('アンサーを適用しました。接続待機中…');
-    } catch (e) {
-      alert('アンサーの適用に失敗: ' + e.message);
-    }
-  }
-
-  // --- Join flow ---
-  async function applyOfferAndMakeAnswer(code) {
-    resetAll();
-    role = 'join';
-    newPeerConnection();
-
-    try {
-      const obj = unpack(code);
-      if (!obj || obj.t !== 'o' || !obj.s) throw new Error('形式が不正です');
-      await pc.setRemoteDescription({ type: 'offer', sdp: obj.s });
-    } catch (e) {
-      alert('オファーの適用に失敗: ' + e.message);
-      return;
-    }
-
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await waitIceComplete(pc);
-
-    const data = pack({ t: 'a', s: pc.localDescription.sdp });
-    byId('answerOutText').value = data;
-    renderQR(byId('answerQR'), data);
-  }
-
-  // --- Tabs ---
-  document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const paneId = tab.dataset.pane;
-      document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
-      byId(paneId).classList.add('active');
-    });
-  });
-
-  // --- Buttons ---
-  byId('btnMakeOffer').addEventListener('click', makeOffer);
-
-  byId('btnScanAnswer').addEventListener('click', () => {
-    byId('hostScan').style.display = '';
-    const video = byId('videoAnswer');
-    stopScanAnswer = startScan(video, (data) => {
-      applyAnswerFromCode(data);
-      byId('hostScan').style.display = 'none';
-    });
-  });
-  byId('btnStopScanAnswer').addEventListener('click', () => {
-    if (stopScanAnswer) stopScanAnswer();
-    byId('hostScan').style.display = 'none';
-  });
-  byId('btnUseAnswerText').addEventListener('click', () => {
-    const code = byId('answerText').value.trim();
-    if (code) applyAnswerFromCode(code);
-  });
-  byId('btnCopyOffer').addEventListener('click', async () => {
-    const t = byId('offerText').value;
-    if (!t) return;
-    await navigator.clipboard.writeText(t);
-  });
-  byId('btnResetHost').addEventListener('click', resetAll);
-
-  byId('btnScanOffer').addEventListener('click', () => {
-    byId('joinScan').style.display = '';
-    const video = byId('videoOffer');
-    stopScanOffer = startScan(video, (data) => {
-      applyOfferAndMakeAnswer(data);
-      byId('joinScan').style.display = 'none';
-    });
-  });
-  byId('btnStopScanOffer').addEventListener('click', () => {
-    if (stopScanOffer) stopScanOffer();
-    byId('joinScan').style.display = 'none';
-  });
-  byId('btnUseOfferText').addEventListener('click', () => {
-    const code = byId('offerTextIn').value.trim();
-    if (code) applyOfferAndMakeAnswer(code);
-  });
-  byId('btnCopyAnswer').addEventListener('click', async () => {
-    const t = byId('answerOutText').value;
-    if (!t) return;
-    await navigator.clipboard.writeText(t);
-  });
-  byId('btnResetJoin').addEventListener('click', resetAll);
-
-  // Send
-  function sendCurrent() {
-    const text = composer.value.trim();
-    if (!text || !dc || dc.readyState !== 'open') return;
-    dc.send(text);
-    addMsg('me', text);
-    composer.value = '';
-  }
-  sendBtn.addEventListener('click', sendCurrent);
-  composer.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendCurrent();
-    }
-  });
-
-  // boot
-  resetAll();
-})();
 </script>
 </body>
 </html>
+
