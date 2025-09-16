@@ -1,94 +1,1105 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>Three.js FBX Loader Sample</title>
+  <meta charset="utf-8" />
+  <title>峠タイムアタック - three.js 1人称/ドリフト/ライト/コース編集可</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { margin: 0; background: #000; }
+    html, body { margin: 0; height: 100%; background: #0a0a0a; color: #e7e7e7; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
     canvas { display: block; }
+    #ui {
+      position: fixed; left: 12px; top: 12px; z-index: 10; padding: 10px 12px;
+      background: rgba(0,0,0,0.45); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px; max-width: 420px; line-height: 1.4;
+    }
+    #ui h1 { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
+    #ui .row { display: flex; gap: 10px; align-items: center; margin: 4px 0; }
+    #hud {
+      position: fixed; right: 12px; top: 12px; z-index: 10; padding: 10px 12px;
+      background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; min-width: 180px;
+      text-align: right;
+    }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: 0 6px; border-radius: 6px; background: rgba(255,255,255,0.08); }
+    #help {
+      position: fixed; left: 12px; bottom: 12px; z-index: 9; padding: 8px 10px;
+      background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; font-size: 12px;
+      max-width: 560px; line-height: 1.35;
+    }
+    #toast {
+      position: fixed; left: 50%; transform: translateX(-50%); bottom: 28px; z-index: 11;
+      background: rgba(24,24,24,0.9); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 14px;
+      display: none; box-shadow: 0 6px 22px rgba(0,0,0,0.4); font-weight: 600; letter-spacing: .2px;
+    }
+    a { color: #9cd3ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    #minimap {
+      position: fixed; right: 12px; bottom: 12px; width: 220px; height: 220px;
+      background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden;
+      display: grid; place-items: center;
+    }
+    #minimap canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+    #buildOverlay {
+      position: fixed; inset: 0; pointer-events: none; z-index: 5;
+    }
   </style>
 </head>
 <body>
-  <script type="module">import * as THREE from './b.js';
-import { OrbitControls } from './a.js';
-import { FBXLoader } from './c.js';
+  <div id="ui">
+    <h1>峠タイムアタック</h1>
+    <div class="row"><span>モード:</span><strong id="modeLabel">Drive</strong></div>
+    <div class="row"><span>視点:</span><button id="btnFPV" class="kbd">1人称</button><button id="btnTPV" class="kbd">3人称</button></div>
+    <div class="row"><span>ライト:</span><button id="btnHead" class="kbd">切替</button><span id="lightLabel">ON</span></div>
+    <div class="row"><span>明るさ:</span><input id="ambient" type="range" min="0.1" max="1.2" step="0.05" value="0.45" /></div>
+    <div class="row"><span>路面反射:</span><input id="roadShine" type="range" min="0" max="1" step="0.05" value="0.2" /></div>
+    <div class="row"><span>グリップ:</span><input id="grip" type="range" min="0.6" max="1.4" step="0.02" value="1.0" /></div>
+    <div class="row"><span>ドリフト強度:</span><input id="drift" type="range" min="0.6" max="1.4" step="0.02" value="1.0" /></div>
+    <div class="row"><button id="btnReset" class="kbd">コース初期化</button><button id="btnRebuild" class="kbd">再生成</button></div>
+  </div>
+  <div id="hud">
+    <div>速度 <span id="spd">0</span> km/h</div>
+    <div>ラップ <span id="lap">0</span></div>
+    <div>経過 <span id="time">0:00.000</span></div>
+    <div>ベスト <span id="best">--:--.---</span></div>
+  </div>
+  <div id="help">
+    操作: WASD / 矢印 = アクセル/ブレーキ/ステア | Space = サイド | L = ヘッドライト | V = 視点切替 | E = コース編集
+    | クリック = 制御点追加/選択 | ドラッグ = 制御点移動 | R = 選択点削除 | Enter = 確定/道路再生成
+    | P = 一時停止 | Esc = ポインタ解除
+  </div>
+  <div id="toast"></div>
+  <div id="minimap"><canvas id="mini" width="512" height="512"></canvas></div>
+  <div id="buildOverlay"></div>
 
-let camera, scene, renderer, controls;
-let mixer; // アニメーション用
-const clock = new THREE.Clock();
+  <script type="module">
+    // -----------------------------------------------------------------------------------
+    // 峠タイムアタック完全サンプル
+    // - three.jsでの1人称運転、簡易車両物理（ドリフト可能）
+    // - スプライン道路生成、ガードレール、衝突・接触反応
+    // - ライト（ヘッドライト＋環境＋月明かり風）、暗くしすぎない露出
+    // - コースエディタ（制御点追加・移動・削除・再生成）
+    // - タイム計測、ミニマップ
+    // - 単一ファイル、800+行、コメント多めで可読性重視
+    // -----------------------------------------------------------------------------------
 
-init();
-animate();
+    import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.158.0/examples/jsm/controls/OrbitControls.js';
 
-function init() {
-  // シーン
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x222222);
+    // ===== ユーティリティ ===================================================================================
 
-  // カメラ
-  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
-  camera.position.set(200, 300, 500);
+    const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const sign = (x) => x < 0 ? -1 : 1;
+    const easeInOut = (t) => t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;
 
-  // ライト
-  const dirLight = new THREE.DirectionalLight(0xffffff);
-  dirLight.position.set(1, 1, 1).normalize();
-  scene.add(dirLight);
-
-  const ambient = new THREE.AmbientLight(0x404040);
-  scene.add(ambient);
-
-  // レンダラー
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  // コントロール
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.1;
-
-  // FBXモデル読み込み
-  const loader = new FBXLoader();
-  loader.load(
-    'AE86.fbx',
-    (object) => {
-      object.scale.set(0.1, 0.1, 0.1); // サイズ調整
-      scene.add(object);
-
-      // アニメーションがある場合
-      if (object.animations && object.animations.length > 0) {
-        mixer = new THREE.AnimationMixer(object);
-        const action = mixer.clipAction(object.animations[0]);
-        action.play();
-      }
-    },
-    (xhr) => {
-      console.log(`読み込み進行: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`);
-    },
-    (error) => {
-      console.error('読み込みエラー:', error);
+    function vec2(x, y) { return new THREE.Vector2(x, y); }
+    function len2(v) { return Math.hypot(v.x, v.y); }
+    function angleWrap(a) {
+      while (a > Math.PI) a -= Math.PI*2;
+      while (a < -Math.PI) a += Math.PI*2;
+      return a;
     }
-  );
+    function rad(deg) { return deg * Math.PI / 180; }
+    function deg(rad) { return rad * 180 / Math.PI; }
 
-  // リサイズ対応
-  window.addEventListener('resize', onWindowResize);
-}
+    function showToast(msg, ms=1400) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.style.display = 'block';
+      setTimeout(()=> el.style.display = 'none', ms);
+    }
 
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
+    // ===== シーン・レンダラ・カメラ ==========================================================================
 
-function animate() {
-  requestAnimationFrame(animate);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
 
-  const delta = clock.getDelta();
-  if (mixer) mixer.update(delta);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0f12); // 夜の青黒、暗すぎない
 
-  controls.update();
-  renderer.render(scene, camera);
-}
-</script>
+    const cameraFPV = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 2000);
+    const cameraTPV = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 2000);
+    cameraFPV.position.set(0, 1.15, 0.3); // ダッシュボード付近
+    cameraTPV.position.set(0, 3, -6);
+
+    const orbit = new OrbitControls(cameraTPV, renderer.domElement);
+    orbit.target.set(0, 1, 0);
+    orbit.enabled = false;
+
+    let useFPV = true;
+    let useHeadLight = true;
+
+    window.addEventListener('resize', () => {
+      cameraFPV.aspect = window.innerWidth / window.innerHeight;
+      cameraFPV.updateProjectionMatrix();
+      cameraTPV.aspect = window.innerWidth / window.innerHeight;
+      cameraTPV.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ===== ライト ===========================================================================================
+
+    // 環境光は暗くしすぎない（UIスライダで調整可能）
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
+    scene.add(ambientLight);
+
+    // 月明かり風のディレクショナル（柔らかい影）
+    const moon = new THREE.DirectionalLight(0xbfd7ff, 0.25);
+    moon.position.set(-30, 60, -20);
+    moon.castShadow = true;
+    moon.shadow.mapSize.set(1024, 1024);
+    scene.add(moon);
+
+    // ヘッドライト（スポット×2）
+    const headGroup = new THREE.Group();
+    const headL = new THREE.SpotLight(0xfff7e0, 2.4, 120, rad(18), 0.35, 0.5);
+    const headR = new THREE.SpotLight(0xfff7e0, 2.4, 120, rad(18), 0.35, 0.5);
+    headL.castShadow = true;
+    headR.castShadow = true;
+    headL.shadow.mapSize.set(1024, 1024);
+    headR.shadow.mapSize.set(1024, 1024);
+    headL.position.set(-0.5, 0.6, 1.2);
+    headR.position.set(0.5, 0.6, 1.2);
+    headGroup.add(headL);
+    headGroup.add(headR);
+    scene.add(headGroup);
+
+    // ヘッドライト可視フラストラム（演出用）
+    function makeLightMesh() {
+      const geom = new THREE.ConeGeometry(0.01, 1, 12, 1, true);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xfff3d0, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false });
+      const lcone = new THREE.Mesh(geom, mat);
+      lcone.rotation.x = Math.PI/2;
+      return lcone;
+    }
+    const headVisL = makeLightMesh(); headVisL.scale.set(10, 120, 10);
+    const headVisR = makeLightMesh(); headVisR.scale.set(10, 120, 10);
+    headVisL.position.copy(headL.position);
+    headVisR.position.copy(headR.position);
+    headGroup.add(headVisL, headVisR);
+
+    // ===== 地面・背景 =======================================================================================
+
+    const world = new THREE.Group();
+    scene.add(world);
+
+    // 遠景の山（シルエット）
+    {
+      const geom = new THREE.PlaneGeometry(2000, 600, 1, 1);
+      const mat = new THREE.MeshBasicMaterial({ color: 0x0a1014, depthWrite: false });
+      const m1 = new THREE.Mesh(geom, mat);
+      m1.position.set(0, 80, -900);
+      scene.add(m1);
+    }
+
+    // 地面（霧気味のアスファルト風）
+    const groundMat = new THREE.MeshStandardMaterial({
+      color: 0x1a1e22,
+      roughness: 0.95,
+      metalness: 0.0,
+      envMapIntensity: 0.2,
+    });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000, 1, 1), groundMat);
+    ground.rotation.x = -Math.PI/2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // ===== コース（スプライン道路、ガードレール、マーキング） ===============================================
+
+    // コース制御点（初期：ゆるい峠レイアウト）
+    let controlPoints = [
+      new THREE.Vector3(  0, 0,   0),
+      new THREE.Vector3( 80, 0,  40),
+      new THREE.Vector3(160, 0,   0),
+      new THREE.Vector3(200, 0, -80),
+      new THREE.Vector3(160, 0,-160),
+      new THREE.Vector3( 80, 0,-190),
+      new THREE.Vector3( -5, 0,-200),
+      new THREE.Vector3(-90, 0,-170),
+      new THREE.Vector3(-160,0,-110),
+      new THREE.Vector3(-190,0, -20),
+      new THREE.Vector3(-160,0,  80),
+      new THREE.Vector3( -70,0, 120),
+    ];
+
+    // エディタ状態
+    let editMode = false;
+    let selectedIndex = -1;
+    const buildOverlay = document.getElementById('buildOverlay');
+
+    // 道路パラメータ
+    const ROAD_WIDTH = 5.8;         // 片側約2.9m
+    const ROAD_SEG = 800;           // スプライン分割数（密度）
+    const GUARD_HEIGHT = 0.75;      // ガードレール高さ
+    const GUARD_OFFSET = 0.2;       // 道路外側のオフセット
+    const SHOULDER = 0.3;           // 路肩
+    const LANE_MARK_EVERY = 8.0;    // 中央破線ピッチ
+    const START_LINE_W = 0.32;      // スタート/フィニッシュライン幅
+
+    // メッシュ保持
+    let roadGroup = new THREE.Group();
+    let guardGroup = new THREE.Group();
+    let lineGroup = new THREE.Group();
+    world.add(roadGroup, guardGroup, lineGroup);
+
+    // ガード衝突判定用の線分データ（左右）
+    let guardSegmentsL = [];
+    let guardSegmentsR = [];
+
+    // ===== 車両・物理 =======================================================================================
+
+    // 簡易車体モデル（見た目は最低限）
+    const carRoot = new THREE.Group();
+    scene.add(carRoot);
+
+    const carBody = new THREE.Mesh(
+      new THREE.BoxGeometry(1.8, 0.9, 3.8),
+      new THREE.MeshStandardMaterial({ color: 0x30353a, roughness: 0.6, metalness: 0.2 })
+    );
+    carBody.position.y = 0.6;
+    carBody.castShadow = true;
+    carBody.receiveShadow = true;
+    carRoot.add(carBody);
+
+    // ほんの少しボンネット別パーツ
+    const hood = new THREE.Mesh(
+      new THREE.BoxGeometry(1.78, 0.22, 1.4),
+      new THREE.MeshStandardMaterial({ color: 0x20262b, roughness: 0.4, metalness: 0.3 })
+    );
+    hood.position.set(0, 0.68, 1.1);
+    hood.castShadow = true;
+    carRoot.add(hood);
+
+    // 車底
+    const floor = new THREE.Mesh(
+      new THREE.BoxGeometry(1.82, 0.1, 3.9),
+      new THREE.MeshStandardMaterial({ color: 0x15181b, roughness: 0.8, metalness: 0.0 })
+    );
+    floor.position.y = 0.16;
+    floor.receiveShadow = true;
+    carRoot.add(floor);
+
+    // ライトのハウジング（視覚）
+    const lampMat = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, emissive: 0x111111, roughness: 0.3, metalness: 0.1 });
+    const lampL = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.16, 0.1), lampMat); lampL.position.set(-0.46, 0.54, 1.96);
+    const lampR = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.16, 0.1), lampMat); lampR.position.set( 0.46, 0.54, 1.96);
+    carRoot.add(lampL, lampR);
+
+    // ヘッドライトを車両に追従させる
+    headGroup.position.set(0, 0, 0);
+    carRoot.add(headGroup);
+
+    // カメラリグ（FPV/TPV切り替え）
+    const cameraRig = new THREE.Group();
+    carRoot.add(cameraRig);
+    const camFPVOffset = new THREE.Vector3(0, 1.05, -0.3); // 車内前寄り
+    const camTPVOffset = new THREE.Vector3(0, 2.8, -6.5);  // 背後
+    cameraRig.add(cameraFPV);
+    cameraRig.add(cameraTPV);
+
+    // 車両物理ステート
+    const state = {
+      pos: new THREE.Vector3(0, 0, 0),
+      vel: new THREE.Vector3(0, 0, 0),
+      yaw: 0,
+      yawRate: 0,
+      // 車両パラメータ（シンプルビークルモデル）
+      mass: 1200,            // kg
+      Iz: 2200,              // ヨー慣性モーメント（簡略）
+      wheelBase: 2.55,       // m
+      cgToFront: 1.2,        // CGから前軸
+      cgToRear: 1.35,        // CGから後軸（合計約2.55）
+      width: 1.8,
+      steerAngle: 0,
+      throttle: 0,
+      brake: 0,
+      handbrake: 0,
+      // タイヤ特性（簡易Pacejka風の曲線 + ドリフトしやすさ調整）
+      corneringStiffFront: 4.1,
+      corneringStiffRear: 3.6,
+      maxGrip: 10.5,         // タイヤの最大横力（質量・gのスケーリング前の係数）
+      engineForce: 4800,     // N
+      brakeForce: 8200,      // N
+      airDrag: 0.425,        // 抗力
+      rollDrag: 12.0,        // 転がり抵抗
+      // 速度・ラップ
+      speed: 0,              // m/s
+      gearRatio: 3.2,        // ダミー
+      // サスペンション/路面（簡略：常に平坦）
+    };
+
+    // 入力
+    const input = { up:false, down:false, left:false, right:false, space:false };
+    window.addEventListener('keydown', (e)=>{
+      if (e.repeat) return;
+      switch(e.code) {
+        case 'ArrowUp': case 'KeyW': input.up = true; break;
+        case 'ArrowDown': case 'KeyS': input.down = true; break;
+        case 'ArrowLeft': case 'KeyA': input.left = true; break;
+        case 'ArrowRight': case 'KeyD': input.right = true; break;
+        case 'Space': input.space = true; break;
+        case 'KeyV': useFPV = !useFPV; updateModeLabel(); break;
+        case 'KeyL': toggleHead(); break;
+        case 'KeyE': toggleEditMode(); break;
+        case 'KeyP': paused = !paused; showToast(paused ? 'PAUSE' : 'RESUME'); break;
+        case 'Enter': if (editMode) rebuildRoadFromControls(); break;
+        case 'KeyR': if (editMode) removeSelectedControl(); break;
+      }
+    });
+    window.addEventListener('keyup', (e)=>{
+      switch(e.code) {
+        case 'ArrowUp': case 'KeyW': input.up = false; break;
+        case 'ArrowDown': case 'KeyS': input.down = false; break;
+        case 'ArrowLeft': case 'KeyA': input.left = false; break;
+        case 'ArrowRight': case 'KeyD': input.right = false; break;
+        case 'Space': input.space = false; break;
+      }
+    });
+
+    function toggleHead() {
+      useHeadLight = !useHeadLight;
+      headL.intensity = headR.intensity = useHeadLight ? 2.4 : 0.0;
+      headVisL.visible = headVisR.visible = useHeadLight;
+      document.getElementById('lightLabel').textContent = useHeadLight ? 'ON' : 'OFF';
+    }
+
+    // ===== UI ===============================================================================================
+
+    document.getElementById('btnFPV').onclick = ()=> { useFPV = true; updateModeLabel(); };
+    document.getElementById('btnTPV').onclick = ()=> { useFPV = false; updateModeLabel(); };
+    document.getElementById('btnHead').onclick = toggleHead;
+    document.getElementById('btnReset').onclick = ()=> { resetControlsToDefault(); rebuildRoadFromControls(); };
+    document.getElementById('btnRebuild').onclick = ()=> rebuildRoadFromControls();
+
+    document.getElementById('ambient').addEventListener('input', (e)=>{
+      ambientLight.intensity = parseFloat(e.target.value);
+    });
+    document.getElementById('roadShine').addEventListener('input', (e)=>{
+      const t = parseFloat(e.target.value);
+      roadMaterial.roughness = lerp(0.15, 0.8, 1.0 - t);
+      roadMaterial.metalness = 0.02 + 0.08*t;
+    });
+    document.getElementById('grip').addEventListener('input', (e)=>{
+      const g = parseFloat(e.target.value);
+      state.maxGrip = 10.5*g;
+      state.corneringStiffFront = 4.1*g;
+      state.corneringStiffRear = 3.6*g;
+    });
+    document.getElementById('drift').addEventListener('input', (e)=>{
+      const d = parseFloat(e.target.value);
+      // ドリフトしやすさ：前輪の横グリップ減少、後輪はやや増やす
+      state.corneringStiffFront = 4.1 * (1.0 / d);
+      state.corneringStiffRear  = 3.6 * d;
+    });
+
+    function updateModeLabel() {
+      document.getElementById('modeLabel').textContent = editMode ? 'Edit' : (useFPV ? 'Drive (FPV)' : 'Drive (TPV)');
+    }
+
+    // ===== コースエディタ（クリックで追加/ドラッグで移動/削除） ==============================================
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let dragging = false;
+
+    function toggleEditMode() {
+      editMode = !editMode;
+      selectedIndex = -1;
+      buildOverlay.style.pointerEvents = editMode ? 'auto' : 'none';
+      updateModeLabel();
+      showToast(editMode ? 'コース編集モード: クリックで追加/ドラッグで移動/Enterで確定' : 'ドライブモード');
+    }
+
+    function resetControlsToDefault() {
+      controlPoints = [
+        new THREE.Vector3(  0, 0,   0),
+        new THREE.Vector3( 80, 0,  40),
+        new THREE.Vector3(160, 0,   0),
+        new THREE.Vector3(200, 0, -80),
+        new THREE.Vector3(160, 0,-160),
+        new THREE.Vector3( 80, 0,-190),
+        new THREE.Vector3( -5, 0,-200),
+        new THREE.Vector3(-90, 0,-170),
+        new THREE.Vector3(-160,0,-110),
+        new THREE.Vector3(-190,0, -20),
+        new THREE.Vector3(-160,0,  80),
+        new THREE.Vector3( -70,0, 120),
+      ];
+      selectedIndex = -1;
+    }
+
+    // オーバーレイ上で地面へレイキャスト
+    buildOverlay.addEventListener('mousedown', (e)=>{
+      if (!editMode) return;
+      dragging = true;
+      const p = getPickOnGround(e);
+      if (!p) return;
+      // 近い制御点があれば選択、なければ追加
+      const idx = findNearestControl(p, 6);
+      if (idx >= 0) {
+        selectedIndex = idx;
+      } else {
+        controlPoints.push(p);
+        selectedIndex = controlPoints.length - 1;
+      }
+    });
+    buildOverlay.addEventListener('mousemove', (e)=>{
+      if (!editMode || !dragging || selectedIndex < 0) return;
+      const p = getPickOnGround(e);
+      if (!p) return;
+      controlPoints[selectedIndex].copy(p);
+      drawEditorHelpers();
+    });
+    window.addEventListener('mouseup', ()=>{
+      dragging = false;
+    });
+
+    function getPickOnGround(e) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width * 2 - 1;
+      const y = -(e.clientY - rect.top) / rect.height * 2 + 1;
+      mouse.set(x, y);
+      const cam = useFPV ? cameraFPV : cameraTPV;
+      raycaster.setFromCamera(mouse, cam);
+      const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+      const p = new THREE.Vector3();
+      const hit = raycaster.ray.intersectPlane(plane, p);
+      if (!hit) return null;
+      return p.clone();
+    }
+
+    function findNearestControl(p, maxDist=5) {
+      let idx = -1, best = Infinity;
+      for (let i=0;i<controlPoints.length;i++) {
+        const d = controlPoints[i].distanceTo(p);
+        if (d < maxDist && d < best) { best = d; idx = i; }
+      }
+      return idx;
+    }
+
+    function removeSelectedControl() {
+      if (selectedIndex < 0) { showToast('選択中のポイントがありません'); return; }
+      controlPoints.splice(selectedIndex, 1);
+      selectedIndex = -1;
+      drawEditorHelpers();
+    }
+
+    // ===== 道路生成（スプラインからメッシュ） ===============================================================
+
+    // マテリアル（スライダで反射具合を調整）
+    const roadMaterial = new THREE.MeshStandardMaterial({
+      color: 0x22282e,
+      roughness: 0.8,
+      metalness: 0.06,
+      envMapIntensity: 0.2,
+    });
+
+    const railMatPost = new THREE.MeshStandardMaterial({ color: 0x8c97a3, roughness: 0.55, metalness: 0.55 });
+    const railMatBeam = new THREE.MeshStandardMaterial({ color: 0xcad3dd, roughness: 0.3,  metalness: 0.75 });
+    const lineMat = new THREE.MeshBasicMaterial({ color: 0xf5f5f5 });
+    const centerLineMat = new THREE.MeshBasicMaterial({ color: 0xffe28a });
+
+    let roadMesh = null;
+
+    function catmullRomClosed(points) {
+      // three.js の Curve を使わず自前で密サンプルを作る
+      const P = points.map(p=>p.clone());
+      if (P.length < 4) return [];
+      // 閉ループ（先頭末尾拡張）
+      const pts = [P[P.length-2].clone(), P[P.length-1].clone(), ...P.map(p=>p.clone()), P[0].clone(), P[1].clone()];
+      const out = [];
+      const segments = P.length;
+      for (let i=0;i<segments;i++) {
+        const p0 = pts[i+0], p1 = pts[i+1], p2 = pts[i+2], p3 = pts[i+3];
+        for (let j=0;j<Math.floor(ROAD_SEG/segments);j++) {
+          const t = j / Math.floor(ROAD_SEG/segments);
+          const t2 = t*t, t3 = t2*t;
+          const v0 = (p2.clone().sub(p0)).multiplyScalar(0.5);
+          const v1 = (p3.clone().sub(p1)).multiplyScalar(0.5);
+          const pos = p1.clone().multiplyScalar(2*t3 - 3*t2 + 1)
+                      .add( v0.clone().multiplyScalar(t3 - 2*t2 + t) )
+                      .add( p2.clone().multiplyScalar(-2*t3 + 3*t2) )
+                      .add( v1.clone().multiplyScalar(t3 - t2) );
+          out.push(pos);
+        }
+      }
+      return out;
+    }
+
+    // 道路断面を帯状に生成（2Dで左右オフセット）
+    function buildRoad() {
+      // 以前のメッシュ破棄
+      for (const g of [roadGroup, guardGroup, lineGroup]) {
+        while (g.children.length) { const m = g.children.pop(); m.geometry.dispose(); if (m.material?.dispose) m.material.dispose(); }
+      }
+      guardSegmentsL = [];
+      guardSegmentsR = [];
+
+      const path = catmullRomClosed(controlPoints);
+      if (path.length < 4) return;
+
+      // 方向と法線
+      const frames = [];
+      for (let i=0;i<path.length;i++) {
+        const p = path[i];
+        const q = path[(i+1)%path.length];
+        const dir = q.clone().sub(p).normalize();
+        const right = new THREE.Vector3(dir.z, 0, -dir.x).normalize(); // Y-up固定
+        frames.push({ p, dir, right });
+      }
+
+      // 道路メッシュ（幅＋路肩）
+      const half = ROAD_WIDTH*0.5 + SHOULDER;
+      const positions = [];
+      const uvs = [];
+      const normals = [];
+      const indices = [];
+
+      // 頂点作成：左右ストリップ
+      for (let i=0;i<frames.length;i++) {
+        const { p, right } = frames[i];
+        const l = p.clone().add(right.clone().multiplyScalar(-half));
+        const r = p.clone().add(right.clone().multiplyScalar( half));
+        positions.push(l.x, 0.01, l.z);
+        positions.push(r.x, 0.01, r.z);
+        // UVは距離基準で伸ばす
+        const v = i / 6;
+        uvs.push(0, v, 1, v);
+        // 法線
+        normals.push(0,1,0,  0,1,0);
+      }
+      // インデックス
+      for (let i=0;i<frames.length;i++) {
+        const a = i*2;
+        const b = a+1;
+        const c = ((i+1)%frames.length)*2;
+        const d = c+1;
+        indices.push(a, c, b,  b, c, d);
+      }
+
+      const roadGeom = new THREE.BufferGeometry();
+      roadGeom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      roadGeom.setAttribute('normal',   new THREE.Float32BufferAttribute(normals, 3));
+      roadGeom.setAttribute('uv',       new THREE.Float32BufferAttribute(uvs, 2));
+      roadGeom.setIndex(indices);
+      roadGeom.computeBoundingSphere();
+
+      roadMesh = new THREE.Mesh(roadGeom, roadMaterial);
+      roadMesh.receiveShadow = true;
+      roadGroup.add(roadMesh);
+
+      // 中央破線
+      const lineGeom = new THREE.BufferGeometry();
+      const linePos = [];
+      const lineIdx = [];
+      let idxBase = 0;
+      let acc = 0;
+      for (let i=0;i<frames.length;i++) {
+        const f = frames[i];
+        const next = frames[(i+1)%frames.length];
+        const segLen = f.p.distanceTo(next.p);
+        acc += segLen;
+        const mid = f.p.clone().add(next.p).multiplyScalar(0.5);
+        const dir = next.p.clone().sub(f.p).normalize();
+        const right = new THREE.Vector3(dir.z, 0, -dir.x).normalize();
+        // 破線パターン（ピッチごとに描画）
+        if (Math.floor(acc / LANE_MARK_EVERY) % 2 === 0) {
+          const w = 0.10;
+          const l = 0.9 * segLen;
+          const a = mid.clone().add(right.clone().multiplyScalar(-0.05));
+          const b = mid.clone().add(right.clone().multiplyScalar( 0.05));
+          const ahead = dir.clone().multiplyScalar(l*0.5);
+          const back  = dir.clone().multiplyScalar(-l*0.5);
+          const p1 = a.clone().add(back), p2 = b.clone().add(back), p3 = a.clone().add(ahead), p4 = b.clone().add(ahead);
+          linePos.push(p1.x,0.02,p1.z,  p2.x,0.02,p2.z,  p3.x,0.02,p3.z,  p4.x,0.02,p4.z);
+          lineIdx.push(idxBase, idxBase+2, idxBase+1,  idxBase+1, idxBase+2, idxBase+3);
+          idxBase += 4;
+        }
+      }
+      lineGeom.setAttribute('position', new THREE.Float32BufferAttribute(linePos, 3));
+      lineGeom.setIndex(lineIdx);
+      const lines = new THREE.Mesh(lineGeom, centerLineMat);
+      lines.renderOrder = 2;
+      lineGroup.add(lines);
+
+      // スタート/フィニッシュライン（s=0付近に白帯）
+      {
+        const s0 = frames[0];
+        const s1 = frames[1];
+        const dir = s1.p.clone().sub(s0.p).normalize();
+        const right = new THREE.Vector3(dir.z, 0, -dir.x).normalize();
+        const a = s0.p.clone().add(right.clone().multiplyScalar(-ROAD_WIDTH*0.5));
+        const b = s0.p.clone().add(right.clone().multiplyScalar( ROAD_WIDTH*0.5));
+        const p1 = a.clone().add(dir.clone().multiplyScalar(-START_LINE_W));
+        const p2 = b.clone().add(dir.clone().multiplyScalar(-START_LINE_W));
+        const p3 = a.clone().add(dir.clone().multiplyScalar( START_LINE_W));
+        const p4 = b.clone().add(dir.clone().multiplyScalar( START_LINE_W));
+        const g = new THREE.BufferGeometry().setFromPoints([p1,p2,p3,p4].map(v=>new THREE.Vector3(v.x,0.025,v.z)));
+        const idx = [0,2,1,  1,2,3];
+        g.setIndex(idx);
+        const m = new THREE.Mesh(g, lineMat);
+        m.renderOrder = 3;
+        lineGroup.add(m);
+      }
+
+      // ガードレール（左右）
+      buildGuards(frames);
+      drawEditorHelpers();
+      // ミニマップ更新
+      updateMiniPath(path, frames);
+    }
+
+    function buildGuards(frames) {
+      // ポスト
+      const postGeom = new THREE.CylinderGeometry(0.045, 0.045, GUARD_HEIGHT, 10);
+      // ビーム（水平バー）
+      const beamGeom = new THREE.BoxGeometry(0.12, 0.07, 1.2);
+
+      const postStep = 4.0; // 4mごと
+      let acc = 0;
+      for (let i=0;i<frames.length;i++) {
+        const f = frames[i];
+        const n = frames[(i+1)%frames.length];
+        const segLen = f.p.distanceTo(n.p);
+        const dir = n.p.clone().sub(f.p).normalize();
+        const right = f.right;
+
+        // 左右の外側エッジ
+        const half = ROAD_WIDTH*0.5 + SHOULDER + GUARD_OFFSET;
+        const edgeL0 = f.p.clone().add(right.clone().multiplyScalar(-half));
+        const edgeR0 = f.p.clone().add(right.clone().multiplyScalar( half));
+        const edgeL1 = n.p.clone().add(right.clone().multiplyScalar(-half));
+        const edgeR1 = n.p.clone().add(right.clone().multiplyScalar( half));
+
+        // 線分を衝突用に記録
+        guardSegmentsL.push({ a: edgeL0.clone(), b: edgeL1.clone(), n: right.clone() }); // 左は外側＝-right
+        guardSegmentsR.push({ a: edgeR0.clone(), b: edgeR1.clone(), n: right.clone().multiplyScalar(-1) });
+
+        // ポスト配置
+        acc += segLen;
+        const count = Math.floor(segLen / postStep);
+        for (let k=0;k<=count;k++) {
+          const t = (k / Math.max(1,count));
+          const base = f.p.clone().lerp(n.p, t);
+          const lpos = base.clone().add(right.clone().multiplyScalar(-half));
+          const rpos = base.clone().add(right.clone().multiplyScalar( half));
+          const postL = new THREE.Mesh(postGeom, railMatPost);
+          postL.position.set(lpos.x, GUARD_HEIGHT*0.5, lpos.z);
+          postL.castShadow = true; postL.receiveShadow = true;
+          guardGroup.add(postL);
+          const postR = new THREE.Mesh(postGeom, railMatPost);
+          postR.position.set(rpos.x, GUARD_HEIGHT*0.5, rpos.z);
+          postR.castShadow = true; postR.receiveShadow = true;
+          guardGroup.add(postR);
+
+          // ビーム（進行方向に合わせ回転）
+          const beamL = new THREE.Mesh(beamGeom, railMatBeam);
+          beamL.position.set(lpos.x, 0.62, lpos.z);
+          beamL.rotation.y = Math.atan2(dir.x, dir.z);
+          beamL.castShadow = true; beamL.receiveShadow = true;
+          guardGroup.add(beamL);
+          const beamL2 = new THREE.Mesh(beamGeom, railMatBeam);
+          beamL2.position.set(lpos.x, 0.48, lpos.z);
+          beamL2.rotation.y = beamL.rotation.y;
+          beamL2.castShadow = true; beamL2.receiveShadow = true;
+          guardGroup.add(beamL2);
+
+          const beamR = new THREE.Mesh(beamGeom, railMatBeam);
+          beamR.position.set(rpos.x, 0.62, rpos.z);
+          beamR.rotation.y = beamL.rotation.y;
+          beamR.castShadow = true; beamR.receiveShadow = true;
+          guardGroup.add(beamR);
+          const beamR2 = new THREE.Mesh(beamGeom, railMatBeam);
+          beamR2.position.set(rpos.x, 0.48, rpos.z);
+          beamR2.rotation.y = beamL.rotation.y;
+          beamR2.castShadow = true; beamR2.receiveShadow = true;
+          guardGroup.add(beamR2);
+        }
+      }
+    }
+
+    // ===== エディタ可視化 ====================================================================================
+
+    const editorGroup = new THREE.Group();
+    world.add(editorGroup);
+
+    function drawEditorHelpers() {
+      // クリア
+      while (editorGroup.children.length) { const m = editorGroup.children.pop(); m.geometry.dispose(); if (m.material?.dispose) m.material.dispose(); }
+      if (!editMode) return;
+      // 制御点球＋線
+      const dotGeom = new THREE.SphereGeometry(0.35, 18, 12);
+      const matA = new THREE.MeshBasicMaterial({ color: 0x8ec9ff });
+      const matB = new THREE.MeshBasicMaterial({ color: 0xffa26b });
+      for (let i=0;i<controlPoints.length;i++) {
+        const s = new THREE.Mesh(dotGeom, i === selectedIndex ? matB : matA);
+        const p = controlPoints[i];
+        s.position.set(p.x, 0.35, p.z);
+        editorGroup.add(s);
+      }
+      // 線
+      const pts = controlPoints.map(p=> new THREE.Vector3(p.x, 0.02, p.z));
+      if (pts.length >= 2) {
+        const g = new THREE.BufferGeometry().setFromPoints([...pts, pts[0]]);
+        const line = new THREE.LineLoop(g, new THREE.LineBasicMaterial({ color: 0x97ff97 }));
+        editorGroup.add(line);
+      }
+    }
+
+    // ===== ミニマップ ========================================================================================
+
+    const mini = document.getElementById('mini');
+    const mictx = mini.getContext('2d');
+    let miniPath = [];
+    let miniScale = 1;
+    let miniOffset = { x: 256, y: 256 };
+
+    function updateMiniPath(path, frames) {
+      miniPath = path.map(p=> ({ x: p.x, y: p.z }));
+      // スケールとオフセット調整
+      if (miniPath.length) {
+        let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+        for (const p of miniPath) { minx=Math.min(minx,p.x); maxx=Math.max(maxx,p.x); miny=Math.min(miny,p.y); maxy=Math.max(maxy,p.y); }
+        const w = maxx-minx, h = maxy-miny;
+        miniScale = 0.9 * Math.min(512/w, 512/h);
+        miniOffset = { x: 256 - (minx+maxx)*0.5*miniScale, y: 256 - (miny+maxy)*0.5*miniScale };
+      }
+    }
+
+    function drawMinimap(carX, carZ) {
+      mictx.clearRect(0,0,512,512);
+      // 背景
+      mictx.fillStyle = '#101418';
+      mictx.fillRect(0,0,512,512);
+      // 道路
+      if (miniPath.length > 1) {
+        mictx.strokeStyle = '#4f5964';
+        mictx.lineWidth = 6;
+        mictx.beginPath();
+        const p0 = miniPath[0];
+        mictx.moveTo(p0.x*miniScale+miniOffset.x, p0.y*miniScale+miniOffset.y);
+        for (let i=1;i<miniPath.length;i++) {
+          const p = miniPath[i];
+          mictx.lineTo(p.x*miniScale+miniOffset.x, p.y*miniScale+miniOffset.y);
+        }
+        mictx.closePath();
+        mictx.stroke();
+
+        mictx.strokeStyle = '#b7c2cc';
+        mictx.lineWidth = 2;
+        mictx.stroke();
+      }
+      // 車
+      mictx.fillStyle = '#ff6b6b';
+      const cx = carX*miniScale+miniOffset.x;
+      const cy = carZ*miniScale+miniOffset.y;
+      mictx.beginPath();
+      mictx.arc(cx, cy, 4, 0, Math.PI*2);
+      mictx.fill();
+    }
+
+    // ===== ラップタイム ======================================================================================
+
+    let lapCount = 0;
+    let lapTime = 0;
+    let bestLap = Infinity;
+    let crossedStart = false;
+
+    function updateLap(dt) {
+      lapTime += dt;
+      document.getElementById('lap').textContent = lapCount.toString();
+      document.getElementById('time').textContent = formatTime(lapTime);
+      document.getElementById('best').textContent = isFinite(bestLap) ? formatTime(bestLap) : '--:--.---';
+    }
+    function formatTime(t) {
+      const m = Math.floor(t/60);
+      const s = Math.floor(t%60);
+      const ms = Math.floor((t - Math.floor(t))*1000);
+      return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(3,'0')}`;
+    }
+
+    // スタートライン通過判定（向きも考慮し、逆走ではラップにしない）
+    function checkStartFinish(prevPos, curPos) {
+      if (!roadMesh) return;
+      const a = controlPoints[0];
+      const b = controlPoints[1];
+      const dir = b.clone().sub(a).normalize();
+      const right = new THREE.Vector3(dir.z, 0, -dir.x);
+      // ライン：aを中心、dirに直交
+      const n = new THREE.Vector3(-dir.x, 0, -dir.z);
+      const d1 = n.dot(prevPos.clone().sub(a));
+      const d2 = n.dot(curPos.clone().sub(a));
+      // 交差＆進行方向が順方向
+      const forward = dir.dot(curPos.clone().sub(prevPos)) > 0;
+      if (d1 < 0 && d2 >= 0 && forward) {
+        // ラップ更新
+        if (lapTime > 2.5) {
+          lapCount++;
+          if (lapTime < bestLap) { bestLap = lapTime; showToast(`ベスト更新: ${formatTime(bestLap)}`); }
+          lapTime = 0;
+        }
+      }
+    }
+
+    // ===== 車両物理更新（ドリフト可能な簡易モデル） ============================================================
+
+    // ここでは標準的なシンプルビークルモデルを採用：重心速度を前後輪に分解、スリップ角から横力を生成
+    // さらに前後輪のコーナリングスティフネス差で荷重移動無しでも自然なドリフト挙動に。
+    function updatePhysics(dt) {
+      // 入力→スロットル/ブレーキ/ステア
+      const steerRate = rad(120); // deg/s -> rad/s
+      const steerMax = rad(35);
+      const targetSteer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+      state.steerAngle = lerp(state.steerAngle, steerMax * targetSteer, 1 - Math.exp(-dt*10));
+
+      state.throttle = input.up ? 1 : 0;
+      // ブレーキはダブル入力（down or space）
+      state.brake = input.down ? 1 : 0;
+      state.handbrake = input.space ? 1 : 0;
+
+      // 車体基準での速度成分
+      const heading = state.yaw;
+      const cosH = Math.cos(heading), sinH = Math.sin(heading);
+      const vx =  cosH*state.vel.x + sinH*state.vel.z;  // 前向き速度
+      const vy = -sinH*state.vel.x + cosH*state.vel.z;  // 左向き速度（横滑り）
+
+      // 前後輪の速度（ヨー角速度の影響）
+      const vFrontY = vy + state.yawRate * state.cgToFront;
+      const vRearY  = vy - state.yawRate * state.cgToRear;
+      const vFrontX = vx; // 縦は等しい（簡略）
+      const vRearX  = vx;
+
+      // スリップ角（小角近似でatan2）
+      const saFront = Math.atan2(vFrontY, Math.max(0.1, Math.abs(vFrontX))) - state.steerAngle;
+      const saRear  = Math.atan2(vRearY,  Math.max(0.1, Math.abs(vRearX)));
+
+      // タイヤ横力：-corneringStiff * slipAngle、飽和（maxGrip）
+      function tireLateralForce(corneringStiff, sa, loadScale=1.0) {
+        // 簡易ペースイカ：小角は線形、大角はtanhでサチュレーション
+        const C = corneringStiff;
+        const Fy = -C * Math.tanh(sa);
+        const maxFy = state.maxGrip * loadScale;
+        return clamp(Fy, -maxFy, maxFy);
+      }
+
+      // 荷重配分（簡略）：静荷重は前後50:50に近い、ブレーキ/加速時の前後移動を少しだけ
+      const speed = Math.hypot(state.vel.x, state.vel.z);
+      const longAccel = (state.engineForce * state.throttle - state.brakeForce*state.brake*Math.sign(vx)) / state.mass;
+      const loadFront = 0.5 + clamp( longAccel * -0.02, -0.08, 0.08 );
+      const loadRear  = 1.0 - loadFront;
+
+      const FyFront = tireLateralForce(state.corneringStiffFront, saFront, loadFront);
+      // サイド引いたら後輪の限界を下げる＝発散しやすく、ドリフト誘発
+      const rearGripScale = state.handbrake ? 0.25 : 1.0;
+      const FyRear  = tireLateralForce(state.corneringStiffRear*rearGripScale, saRear, loadRear);
+
+      // ロング方向：エンジン - ブレーキ - 抵抗
+      const engine = state.engineForce * state.throttle;
+      const braking = state.brakeForce * (state.brake + (state.handbrake ? 0.2 : 0.0)) * Math.sign(vx);
+      const drag = state.airDrag * vx*vx * Math.sign(vx);
+      const roll = state.rollDrag * Math.sign(vx);
+      const Fx = engine - braking - drag - roll;
+
+      // 車体基準→世界基準
+      const sin = Math.sin(heading), cos = Math.cos(heading);
+
+      // 横力は前後、Yawモーメントは力×アーム
+      const sumFy = FyFront + FyRear;
+      const Mz = FyFront * state.cgToFront - FyRear * state.cgToRear;
+
+      // 加速度
+      const ax_body = Fx / state.mass + vy * state.yawRate; // 簡易Coupling
+      const ay_body = sumFy / state.mass - vx * state.yawRate;
+
+      // 世界座標へ
+      const ax_world =  cos*ax_body - sin*ay_body;
+      const az_world =  sin*ax_body + cos*ay_body;
+
+      // 速度・位置・姿勢更新
+      state.vel.x += ax_world * dt;
+      state.vel.z += az_world * dt;
+
+      const prevPos = state.pos.clone();
+      state.pos.x += state.vel.x * dt;
+      state.pos.z += state.vel.z * dt;
+
+      state.yawRate += (Mz / state.Iz) * dt;
+      state.yaw += state.yawRate * dt;
+      state.yaw = angleWrap(state.yaw);
+
+      // 地面拘束
+      state.pos.y = 0;
+
+      // 衝突（ガードレールに押し戻し＋反力）
+      handleGuardCollision(prevPos);
+
+      // 速度（表示）
+      state.speed = Math.hypot(state.vel.x, state.vel.z);
+      document.getElementById('spd').textContent = Math.round(state.speed * 3.6).toString();
+
+      // ラップ判定
+      checkStartFinish(prevPos, state.pos);
+    }
+
+    // ガードレール衝突：線分距離が小さく、法線方向に貫通したら反射＆位置補正
+    function handleGuardCollision(prevPos) {
+      const radius = 0.9; // 車体近似半径
+      const v = state.pos.clone().sub(prevPos);
+      // 左右チェック
+      const lists = [guardSegmentsL, guardSegmentsR];
+      for (const segs of lists) {
+        for (let i=0;i<segs.length;i++) {
+          const { a, b, n } = segs[i];
+          // 点と線分の最近点
+          const ab = b.clone().sub(a);
+          const t = clamp(a.clone().sub(state.pos).dot(ab.negate()) / ab.lengthSq(), 0, 1);
+          const closest = a.clone().lerp(b, t);
+          const d = closest.distanceTo(state.pos);
+          if (d < radius) {
+            // 衝突。押し戻し
+            const pushDir = state.pos.clone().sub(closest).setY(0).normalize();
+            const depth = (radius - d);
+            state.pos.add(pushDir.multiplyScalar(depth + 0.001));
+            // 速度反射（法線方向減衰）
+            const vel = state.vel.clone();
+            const normal = pushDir.lengthSq() > 0 ? pushDir.clone().normalize() : n.clone().normalize();
+            const vn = normal.clone().multiplyScalar(vel.dot(normal));
+            const vt = vel.clone().sub(vn);
+            // 反発係数と摩擦
+            const restitution = 0.05;
+            const friction = 0.65;
+            state.vel.copy( vt.multiplyScalar(1 - friction).add( vn.multiplyScalar(-restitution) ) );
+            // ヨーも少し減衰
+            state.yawRate *= 0.6;
+          }
+        }
+      }
+    }
+
+    // ===== 初期配置 ==========================================================================================
+
+    function placeCarAtStart() {
+      const a = controlPoints[0];
+      const b = controlPoints[1];
+      const dir = b.clone().sub(a).normalize();
+      state.pos.set(a.x, 0, a.z);
+      state.vel.set(0,0,0);
+      state.yaw = Math.atan2(dir.x, dir.z);
+      state.yawRate = 0;
+      lapCount = 0;
+      lapTime = 0;
+      crossedStart = false;
+    }
+
+    // ===== レンダリングループ =================================================================================
+
+    let lastTime = performance.now() / 1000;
+    let paused = false;
+
+    function update(dt) {
+      if (!paused) {
+        updatePhysics(dt);
+      }
+
+      // 車メッシュ追従
+      carRoot.position.copy(state.pos);
+      carRoot.rotation.y = state.yaw;
+
+      // カメラ追従
+      cameraFPV.position.copy(camFPVOffset);
+      cameraTPV.position.copy(camTPVOffset);
+      cameraRig.position.set(0,0,0); // 相対
+      // ステア時の視線微調整（FPV）
+      if (useFPV) {
+        cameraFPV.rotation.set(0, 0, 0);
+      }
+
+      // ヘッドライト方向
+      headL.target?.position?.set(0, 0.1, 15);
+      headR.target?.position?.set(0, 0.1, 15);
+      if (!headL.target) { headL.target = new THREE.Object3D(); headGroup.add(headL.target); }
+      if (!headR.target) { headR.target = new THREE.Object3D(); headGroup.add(headR.target); }
+
+      // UI
+      updateLap(dt);
+      drawMinimap(state.pos.x, state.pos.z);
+    }
+
+    function render() {
+      const now = performance.now() / 1000;
+      let dt = now - lastTime;
+      lastTime = now;
+      dt = Math.min(dt, 0.033); // 30ms上限
+
+      update(dt);
+
+      const cam = useFPV ? cameraFPV : cameraTPV;
+      orbit.enabled = !useFPV;
+      if (!useFPV) orbit.update();
+
+      renderer.render(scene, cam);
+      requestAnimationFrame(render);
+    }
+
+    // ===== 道路の再生成 ======================================================================================
+
+    function rebuildRoadFromControls() {
+      buildRoad();
+      placeCarAtStart();
+    }
+
+    // ===== 実行開始 ===========================================================================================
+
+    buildRoad();
+    placeCarAtStart();
+    toggleHead(); // 一旦OFF→
+    toggleHead(); // →ONの状態で初期化
+    render();
+
+    // ===== 追加: 視点ボタンとUI連動 ============================================================================
+    function updateUIState() {
+      document.getElementById('lightLabel').textContent = useHeadLight ? 'ON' : 'OFF';
+    }
+    updateUIState();
+
+    // ===== ポインタロック（FPV時任意） =========================================================================
+    renderer.domElement.addEventListener('click', ()=>{
+      if (!editMode) renderer.domElement.requestPointerLock?.();
+    });
+    document.addEventListener('pointerlockchange', ()=>{
+      // ここでは特に何もしない（視点回転はしていない）
+    });
+
+    // ===== コース再生成時の視覚微調整 ==========================================================================
+    // 道路材質を少しムラにしてヌメらない
+    {
+      const texSize = 128;
+      const can = document.createElement('canvas');
+      can.width = can.height = texSize;
+      const ctx = can.getContext('2d');
+      const imgData = ctx.createImageData(texSize, texSize);
+      for (let y=0;y<texSize;y++){
+        for (let x=0;x<texSize;x++){
+          const i = (y*texSize+x)*4;
+          const n = 28 + Math.floor(12*Math.random());
+          imgData.data[i+0]=n; imgData.data[i+1]=n; imgData.data[i+2]=n; imgData.data[i+3]=255;
+        }
+      }
+      ctx.putImageData(imgData,0,0);
+      const tex = new THREE.CanvasTexture(can);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(30, 30);
+      roadMaterial.map = tex;
+      roadMaterial.needsUpdate = true;
+    }
+
+    // ===== スタイル調整: 暗すぎない露出 =========================================================================
+    // 既に環境光を0.45、月光0.25に設定。ヘッドライトの強度も2.4で夜でも視認性を確保。
+    // UIで明るさ・路面反射・グリップ/ドリフトを調整可能。
+
+  </script>
 </body>
 </html>
