@@ -2,18 +2,19 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>Realistic Earth - three.js</title>
+<title>Realistic Earth (non-ESM)</title>
 <style>
-  body { margin:0; overflow:hidden; background:black; }
-  canvas { display:block; }
+  body { margin: 0; overflow: hidden; background: black; }
+  canvas { display: block; }
 </style>
 </head>
 <body>
 
-<script type="module">
-import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+<!-- three.js 本体（非ESM） -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
+
+<script>
 //
 // ================== 基本セットアップ ==================
 //
@@ -29,33 +30,33 @@ camera.position.set(0, 0, 5);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(devicePixelRatio);
+renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
+
 
 //
-// ================== 光源（太陽） ==================
+// ================== 太陽光 ==================
 //
 const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
 sunLight.position.set(5, 2, 5);
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.mapSize.width = 2048;
+sunLight.shadow.mapSize.height = 2048;
 scene.add(sunLight);
 
 scene.add(new THREE.AmbientLight(0x222222));
 
 //
-// ================== テクスチャ読み込み ==================
+// ================== テクスチャ ==================
 //
 const loader = new THREE.TextureLoader();
-const texDay = loader.load("earth_day.jpg");
-const texNight = loader.load("earth_night.jpg");
+
+const texDay    = loader.load("earth_day.jpg");
+const texNight  = loader.load("earth_night.jpg");
 const texNormal = loader.load("earth_normal.jpg");
-const texSpec = loader.load("earth_specular.jpg");
 const texClouds = loader.load("earth_clouds.png");
 
 //
@@ -79,7 +80,7 @@ earth.receiveShadow = true;
 scene.add(earth);
 
 //
-// ================== 雲レイヤー ==================
+// ================== 雲 ==================
 //
 const cloudGeo = new THREE.SphereGeometry(1.01, 128, 128);
 const cloudMat = new THREE.MeshStandardMaterial({
@@ -92,49 +93,17 @@ const clouds = new THREE.Mesh(cloudGeo, cloudMat);
 scene.add(clouds);
 
 //
-// ================== 大気（シェーダ） ==================
+// ================== 大気（簡易グロー） ==================
 //
-const atmoMat = new THREE.ShaderMaterial({
-  side: THREE.BackSide,
+const atmoGeo = new THREE.SphereGeometry(1.1, 128, 128);
+const atmoMat = new THREE.MeshBasicMaterial({
+  color: 0x4da6ff,
   transparent: true,
-  blending: THREE.AdditiveBlending,
-  uniforms: {
-    c: { value: 0.5 },
-    p: { value: 4.0 },
-    glowColor: { value: new THREE.Color(0x4da6ff) },
-    viewVector: { value: camera.position }
-  },
-  vertexShader: `
-    uniform vec3 viewVector;
-    uniform float c;
-    uniform float p;
-    varying float intensity;
-    void main() {
-      vec3 vNormal = normalize(normalMatrix * normal);
-      vec3 vNormel = normalize(normalMatrix * viewVector);
-      intensity = pow(c - dot(vNormal, vNormel), p);
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform vec3 glowColor;
-    varying float intensity;
-    void main() {
-      gl_FragColor = vec4(glowColor * intensity, intensity);
-    }
-  `
+  opacity: 0.15,
+  side: THREE.BackSide
 });
-
-const atmosphere = new THREE.Mesh(
-  new THREE.SphereGeometry(1.1, 128, 128),
-  atmoMat
-);
+const atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
 scene.add(atmosphere);
-
-//
-// ================== 背景（宇宙） ==================
-//
-scene.background = new THREE.Color(0x000000);
 
 //
 // ================== アニメーション ==================
@@ -143,11 +112,9 @@ function animate() {
   requestAnimationFrame(animate);
 
   earth.rotation.y += 0.0005;
-  clouds.rotation.y += 0.0007;
+  clouds.rotation.y += 0.0008;
 
-  atmoMat.uniforms.viewVector.value = camera.position;
-
-  controls.update();
+  
   renderer.render(scene, camera);
 }
 animate();
