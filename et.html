@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Realistic Earth - three.js</title>
+<style>
+  body { margin:0; overflow:hidden; background:black; }
+  canvas { display:block; }
+</style>
+</head>
+<body>
+
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+
+//
+// ================== 基本セットアップ ==================
+//
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(
+  45,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+camera.position.set(0, 0, 5);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+//
+// ================== 光源（太陽） ==================
+//
+const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+sunLight.position.set(5, 2, 5);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+scene.add(sunLight);
+
+scene.add(new THREE.AmbientLight(0x222222));
+
+//
+// ================== テクスチャ読み込み ==================
+//
+const loader = new THREE.TextureLoader();
+const texDay = loader.load("earth_day.jpg");
+const texNight = loader.load("earth_night.jpg");
+const texNormal = loader.load("earth_normal.jpg");
+const texSpec = loader.load("earth_specular.jpg");
+const texClouds = loader.load("earth_clouds.png");
+
+//
+// ================== 地球本体 ==================
+//
+const earthGeo = new THREE.SphereGeometry(1, 128, 128);
+
+const earthMat = new THREE.MeshStandardMaterial({
+  map: texDay,
+  normalMap: texNormal,
+  roughness: 1,
+  metalness: 0,
+  emissiveMap: texNight,
+  emissive: new THREE.Color(0xffffff),
+  emissiveIntensity: 1
+});
+
+const earth = new THREE.Mesh(earthGeo, earthMat);
+earth.castShadow = true;
+earth.receiveShadow = true;
+scene.add(earth);
+
+//
+// ================== 雲レイヤー ==================
+//
+const cloudGeo = new THREE.SphereGeometry(1.01, 128, 128);
+const cloudMat = new THREE.MeshStandardMaterial({
+  map: texClouds,
+  transparent: true,
+  opacity: 0.8,
+  depthWrite: false
+});
+const clouds = new THREE.Mesh(cloudGeo, cloudMat);
+scene.add(clouds);
+
+//
+// ================== 大気（シェーダ） ==================
+//
+const atmoMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide,
+  transparent: true,
+  blending: THREE.AdditiveBlending,
+  uniforms: {
+    c: { value: 0.5 },
+    p: { value: 4.0 },
+    glowColor: { value: new THREE.Color(0x4da6ff) },
+    viewVector: { value: camera.position }
+  },
+  vertexShader: `
+    uniform vec3 viewVector;
+    uniform float c;
+    uniform float p;
+    varying float intensity;
+    void main() {
+      vec3 vNormal = normalize(normalMatrix * normal);
+      vec3 vNormel = normalize(normalMatrix * viewVector);
+      intensity = pow(c - dot(vNormal, vNormel), p);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 glowColor;
+    varying float intensity;
+    void main() {
+      gl_FragColor = vec4(glowColor * intensity, intensity);
+    }
+  `
+});
+
+const atmosphere = new THREE.Mesh(
+  new THREE.SphereGeometry(1.1, 128, 128),
+  atmoMat
+);
+scene.add(atmosphere);
+
+//
+// ================== 背景（宇宙） ==================
+//
+scene.background = new THREE.Color(0x000000);
+
+//
+// ================== アニメーション ==================
+//
+function animate() {
+  requestAnimationFrame(animate);
+
+  earth.rotation.y += 0.0005;
+  clouds.rotation.y += 0.0007;
+
+  atmoMat.uniforms.viewVector.value = camera.position;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+//
+// ================== リサイズ ==================
+//
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+
+</body>
+</html>
