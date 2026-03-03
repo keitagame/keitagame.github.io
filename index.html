@@ -4,15 +4,16 @@
 <title>トップ</title>
 <style>
   body{
-background:rgb(245, 245, 245);
+background:rgb(227, 227, 227);
 }
 
 </style>
 </head>
 <body>
   <p id="now"></p>
+  <div style="display:flex; gap:10px"><a href="/">ファミコム</a><a href="/">深テ掲示板</a><a href="/">ブログ(作成中)</a></div>
   <h3 style="color:red">けいたのホームページ(仮)</h3>
-  <p>ここは、けいたが自らを公開するために生み出されたサイトです。</p>
+  <p>ここは、「Kawase Keita」のホームページです</p>
   
 <script>
   function pad(n) { return String(n).padStart(2, "0"); } function updateTime() { const now = new Date(); const y = now.getFullYear(); const m = pad(now.getMonth() + 1); const d = pad(now.getDate()); const h = pad(now.getHours()); const min = pad(now.getMinutes()); const s = pad(now.getSeconds()); document.getElementById("now").textContent = `<現在時刻> ${y}/${m}/${d} 【 ${h}:${min}:${s} 】`; }
