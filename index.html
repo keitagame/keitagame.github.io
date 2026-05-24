@@ -1,37 +1,24 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<title>トップ</title>
-<style>
-  body{
-background:rgb(227, 227, 227);
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>keita_kawase</title>
+    <style>
+      body{
+margin:0;
 }
 
-</style>
+    </style>
 </head>
 <body>
-  <p id="now"></p>
-  <div style="display:flex; gap:10px"><a href="/">ファミコム</a><a href="/">深テ掲示板</a><a href="/">ブログ(作成中)</a></div>
-  <img width="400" src="franksite.png"><br>
-  <img width="400" src="shiri.png"><br>
-  <h3 style="color:red">けいたのホームページ(仮)</h3>
-  <p>ここは、「Kawase Keita」のホームページです</p>
-  <h3>軽く自己紹介</h3>
-  <div>得意言語：javascript / python / c</div>
-  <div>趣味：プログラミング / 自作pc / 紙飛行機</div>
-  <div>誕生日：2010 / 03 / 19</div>
-  <h3>プロジェクト一覧</h3>
-  <ul>
-    <li><a href="https://github.com/keitagame/FAMICOMU">ファミコンエミュレーター</a></li>
-     <li><a href="https://github.com/keitagame/GBCMU">ゲームボーイエミュレーター</a></li>
-       <li><a href="https://github.com/keitagame/midi">MIDIプレイヤー</a></li>
-  </ul>
-<script>
-  function pad(n) { return String(n).padStart(2, "0"); } function updateTime() { const now = new Date(); const y = now.getFullYear(); const m = pad(now.getMonth() + 1); const d = pad(now.getDate()); const h = pad(now.getHours()); const min = pad(now.getMinutes()); const s = pad(now.getSeconds()); document.getElementById("now").textContent = `<現在時刻> ${y}/${m}/${d} 【 ${h}:${min}:${s} 】`; }
-
-  updateTime();          // 初回表示
-  setInterval(updateTime, 100);  // 1秒ごとに更新
-</script>
-
+<div style="font-size:10em;text-align:center;">おはわーるど</div>
+<div style="text-align:center">
+<img style="border-radius:5000px" src="5-FfrcX4_400x400.jpg" width="100">
+<div style="font-size:20px;">keita_kawase@<span style="color:gray;">keita_sprint</span></div>
+<div style="font-size:30px;">ネットに生きるとある男のホームページ...</div>
+<br>
+<div>リンク達</div>
+</div>
 </body>
 </html>
